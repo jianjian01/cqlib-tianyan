@@ -7,7 +7,7 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-cqlib.workspace = true
+cqlib-core.workspace = true
 dirs.workspace = true
 reqwest.workspace = true
 serde.workspace = true

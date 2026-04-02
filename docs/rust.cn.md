@@ -267,23 +267,31 @@ if let Some(cal) = backend.readout_calibration_data()? {
 
 ### 6.5 自动矫正（推荐）
 
-`wait()` 在有可用校准数据时，会自动下载并应用矫正：
+`wait()` 使用 `CalibrationMode::Auto`（默认）策略，在以下条件**同时**满足时自动下载并应用矫正：
+1. 后端存在可用的校准数据。
+2. 本次电路**测量的量子比特数 ≤ `AUTO_CALIBRATION_MAX_QUBITS`（14）**。
+
+> **为何有 14 比特的限制？**  
+> 逆混淆矩阵的内存占用为 O(4ⁿ)，其中 n 为被测比特数。n = 14 时约 2 GiB；n = 15 时约 8 GiB。超过此阈值，`Auto` 模式会静默回退到原始计数以防止内存溢出（OOM）。如需对较大电路强制应用矫正，请改用 `CalibrationMode::Enabled`（调用方需自行保证内存充足）。
 
 ```rust
-// 默认 CalibrationMode::Auto — 无需额外代码：
+// 默认 CalibrationMode::Auto — ≤ 14 比特时自动矫正：
 let results = task.wait(Duration::from_secs(120), Duration::from_secs(5))?;
 ```
 
-### 6.6 手动指定保真度
+### 6.6 手动指定校准数据
+
+通过 `backend.readout_calibration_data()` 获取 `ReadoutCalibrationData` 后传入。
+库会按实际被测量的比特硬件索引自动过滤，无需手动筛选。
 
 ```rust
-// 手动提供 f00 和 f11 向量（按比特 0 到 N-1 排列）
-let results = task.wait_with_calibration(
-    Duration::from_secs(120),
-    Duration::from_secs(5),
-    &[0.9525, 0.9689],  // Q1、Q8 的 f00
-    &[0.8180, 0.9352],  // Q1、Q8 的 f11
-)?;
+if let Some(cal) = backend.readout_calibration_data()? {
+    let results = task.wait_with_calibration(
+        Duration::from_secs(120),
+        Duration::from_secs(5),
+        &cal,
+    )?;
+}
 ```
 
 ### 6.7 矫正前后对比
@@ -324,9 +332,11 @@ let task = backend.run(circuits, 1000)?;
 
 | 枚举值 | 行为 |
 |--------|------|
-| `Auto`（**默认**） | 有校准数据时应用矫正；无数据时静默回退到原始计数 |
-| `Enabled` | 必须应用矫正；若无校准数据则返回错误 |
-| `Disabled` | 始终返回原始计数 |
+| `Auto`（**默认**） | 当有校准数据**且**被测比特数 ≤ 14 时应用矫正；否则静默回退到原始计数 |
+| `Enabled` | 无论比特数多少，强制应用矫正；若无校准数据则返回错误（调用方需自行保证内存充足） |
+| `Disabled` | 始终返回原始计数，不进行任何矫正 |
+
+> **`Auto` 的 14 比特阈值**：混淆矩阵内存为 O(4ⁿ)，n > 14 时超过 2 GiB，`Auto` 会自动回退以防 OOM。详见常量 `AUTO_CALIBRATION_MAX_QUBITS`。
 
 在提交时指定：
 

@@ -33,8 +33,6 @@ use std::path::Path;
 /// Conservative token lifetime in seconds (3 hours).
 pub const TOKEN_VALID_SECS: i64 = 3 * 60 * 60;
 
-// ── Credentials ───────────────────────────────────────────────────────────────
-
 /// Persisted authentication credentials for the Tianyan platform.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Credentials {
@@ -56,8 +54,6 @@ impl Credentials {
         now - self.token_obtained_at >= TOKEN_VALID_SECS
     }
 }
-
-// ── Login ─────────────────────────────────────────────────────────────────────
 
 /// Login request body sent to the Tianyan auth endpoint.
 #[derive(Serialize)]
@@ -124,8 +120,6 @@ pub fn login(api_key: &str, config: &TianyanConfig) -> Result<Credentials, Tiany
     })
 }
 
-// ── Persistence ───────────────────────────────────────────────────────────────
-
 /// Serialise `credentials` to JSON and write them to `path`.
 ///
 /// Parent directories are created automatically.
@@ -135,6 +129,14 @@ pub fn save_credentials(credentials: &Credentials, path: &Path) -> Result<(), Ti
     }
     let json = serde_json::to_string_pretty(credentials)?;
     fs::write(path, json)?;
+
+    // Restrict the credentials file to the owner only (Unix: mode 0o600).
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    }
+
     Ok(())
 }
 

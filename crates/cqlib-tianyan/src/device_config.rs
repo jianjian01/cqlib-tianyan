@@ -29,8 +29,6 @@ use cqlib_core::device::{Device, EdgeProp, InstructionProp, QubitProp, Topology}
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
-// ── Raw JSON structures ──────────────────────────────────────────────────────
-
 /// Top-level JSON returned by the download-config endpoint.
 #[derive(Deserialize)]
 struct RawConfig {
@@ -39,8 +37,12 @@ struct RawConfig {
     #[serde(rename = "computerId", default)]
     #[allow(dead_code)]
     computer_id: Option<String>,
+    /// Comma-separated list of offline/faulty qubit names, e.g. `"Q2,Q10"`.
     #[serde(rename = "disabledQubits")]
     disabled_qubits: Option<String>,
+    /// Comma-separated list of disabled coupler names, e.g. `"G0,G4,G7"`.
+    #[serde(rename = "disabledCouplers")]
+    disabled_couplers: Option<String>,
     overview: Option<Overview>,
     qubit: Option<QubitSection>,
     readout: Option<ReadoutSection>,
@@ -125,8 +127,6 @@ struct ParamArray {
     qubit_used: Vec<String>,
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
 /// Parse a qubit name like `"Q3"` into `Qubit::new(3)`.
 fn parse_qubit(name: &str) -> Option<Qubit> {
     name.strip_prefix('Q')
@@ -152,8 +152,6 @@ fn parse_calibration_time(s: &str) -> Option<time::OffsetDateTime> {
         .ok()
         .map(|dt| dt.assume_utc())
 }
-
-// ── Public API ───────────────────────────────────────────────────────────────
 
 /// Download and parse the calibration configuration for a device, returning
 /// a fully-populated [`Device`].
@@ -202,6 +200,18 @@ pub fn download_device_config_full(
 /// Parse a raw JSON value into a [`Device`].
 ///
 /// Exposed for testing and for callers who already have the JSON.
+///
+/// # Qubit and coupler filtering
+///
+/// The platform JSON has two categories of disabled hardware:
+/// - `disabledQubits`  — qubits that are offline or faulty; excluded from the
+///   topology and recorded in [`Device::invalid_qubits`].
+/// - `disabledCouplers` — couplers (edges) that are currently non-functional;
+///   excluded from the topology edges even if both endpoint qubits are available.
+///
+/// `Device::new` enforces that every qubit appearing in the topology must also
+/// be in the "available qubits" set, so disabled qubits must be removed from
+/// topology nodes before construction.
 pub fn parse_device_config(
     machine: &str,
     json: &serde_json::Value,
@@ -212,51 +222,77 @@ pub fn parse_device_config(
         TianyanError::InvalidInput("config JSON missing 'overview' section".into())
     })?;
 
-    // ── Build qubit set and topology ─────────────────────────────────────────
+    // These must be resolved before constructing the topology so that
+    // Device::new's invariant (topology qubits ⊆ available qubits) is satisfied.
 
-    let all_qubits: Vec<Qubit> = overview
+    let disabled_qubit_set: HashSet<Qubit> = raw
+        .disabled_qubits
+        .as_deref()
+        .map(|s| {
+            s.split(',')
+                .filter_map(|name| parse_qubit(name.trim()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let disabled_coupler_set: HashSet<&str> = raw
+        .disabled_couplers
+        .as_deref()
+        .map(|s| s.split(',').map(str::trim).collect())
+        .unwrap_or_default();
+
+    // Disabled qubits are excluded from the topology entirely; they are recorded
+    // separately in Device::invalid_qubits for informational purposes.
+
+    let available_qubits: Vec<Qubit> = overview
         .qubits
         .iter()
         .filter_map(|name| parse_qubit(name))
+        .filter(|q| !disabled_qubit_set.contains(q))
         .collect();
-    let qubit_set: HashSet<Qubit> = all_qubits.iter().copied().collect();
+    let available_qubit_set: HashSet<Qubit> = available_qubits.iter().copied().collect();
 
-    // coupling_map: "G0": ["Q1", "Q0"] → (Qubit(1), Qubit(0), "G0")
+    // A coupler is excluded if:
+    //   (a) its name appears in `disabledCouplers`, or
+    //   (b) either of its endpoint qubits is disabled (the disabled-coupler list
+    //       from the API should already cover these, but we guard defensively).
+
     let mut coupling_entries: Vec<(Qubit, Qubit, String)> = Vec::new();
     for (coupler_name, qubit_pair) in &overview.coupler_map {
+        if disabled_coupler_set.contains(coupler_name.as_str()) {
+            continue;
+        }
         if qubit_pair.len() == 2 {
             if let (Some(q0), Some(q1)) = (parse_qubit(&qubit_pair[0]), parse_qubit(&qubit_pair[1]))
             {
+                // Defensively skip edges whose endpoints are disabled.
+                if disabled_qubit_set.contains(&q0) || disabled_qubit_set.contains(&q1) {
+                    continue;
+                }
                 coupling_entries.push((q0, q1, coupler_name.clone()));
             }
         }
     }
 
-    let topology = Topology::new(all_qubits, coupling_entries)
+    // Topology is built from available qubits only; Device::new validates that
+    // every topology node is in the provided qubit set.
+
+    let topology = Topology::new(available_qubits, coupling_entries)
         .map_err(|e| TianyanError::InvalidInput(format!("failed to build topology: {}", e)))?;
 
-    let mut device = Device::new(machine, qubit_set, topology)
+    let mut device = Device::new(machine, available_qubit_set, topology)
         .map_err(|e| TianyanError::InvalidInput(format!("failed to build device: {}", e)))?;
 
-    // ── Disabled (invalid) qubits ────────────────────────────────────────────
-
-    if let Some(ref disabled_str) = raw.disabled_qubits {
-        let invalid: HashSet<Qubit> = disabled_str
-            .split(',')
-            .filter_map(|s| parse_qubit(s.trim()))
-            .collect();
-        device = device.with_invalid_qubits(invalid);
+    // Record disabled qubits separately so callers can inspect them.
+    if !disabled_qubit_set.is_empty() {
+        device = device.with_invalid_qubits(disabled_qubit_set);
     }
-
-    // ── Calibration time ─────────────────────────────────────────────────────
 
     if let Some(ref ct) = raw.calibration_time {
         if let Some(dt) = parse_calibration_time(ct) {
             device = device.with_calibration_time(dt);
         }
     }
-
-    // ── Device-level defaults from overview ──────────────────────────────────
 
     if let Some(t1) = overview.t1 {
         device = device.with_default_t1(t1);
@@ -273,8 +309,6 @@ pub fn parse_device_config(
     if let Some(cze) = overview.cz_error {
         device = device.with_default_two_qubit_error(cze / 100.0);
     }
-
-    // ── Per-qubit properties ─────────────────────────────────────────────────
 
     // Collect per-qubit data from various sub-sections into lookup maps.
     let freq_map = raw
@@ -381,8 +415,6 @@ pub fn parse_device_config(
         let _ = device.add_qubit_properties(qubit, prop);
     }
 
-    // ── Per-edge (coupler) properties ────────────────────────────────────────
-
     if let Some(ref tqg) = raw.two_qubit_gate {
         if let Some(ref cz) = tqg.cz_gate {
             if let Some(ref cz_err) = cz.gate_error {
@@ -423,6 +455,28 @@ pub struct ReadoutCalibrationData {
     pub f00: Vec<f64>,
     /// P(measure 1 | prepared 1) per qubit.
     pub f11: Vec<f64>,
+}
+
+impl ReadoutCalibrationData {
+    /// Build a lookup map from qubit hardware index to `(f00, f11)` fidelity pair.
+    ///
+    /// Qubit names like `"Q8"` are parsed to hardware index `8`.  Entries whose
+    /// name cannot be parsed are silently skipped.
+    ///
+    /// This map is used internally to look up fidelities only for the qubits that
+    /// were actually measured in a circuit, avoiding the need to build a full
+    /// 2^n × 2^n confusion matrix over all device qubits.
+    pub fn to_cal_map(&self) -> HashMap<u32, (f64, f64)> {
+        self.qubit_names
+            .iter()
+            .zip(self.f00.iter().zip(self.f11.iter()))
+            .filter_map(|(name, (&f0, &f1))| {
+                name.strip_prefix('Q')
+                    .and_then(|s| s.parse::<u32>().ok())
+                    .map(|idx| (idx, (f0, f1)))
+            })
+            .collect()
+    }
 }
 
 /// Extract readout calibration data from the raw config JSON.

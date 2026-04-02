@@ -5,4 +5,12 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+name = "_cqlib_tianyan"
+crate-type = ["cdylib"]
+
 [dependencies]
+pyo3 = { version = "0.27", features = ["extension-module", "abi3-py310"] }
+cqlib-tianyan = { path = "../cqlib-tianyan" }
+cqlib-core = { workspace = true }
+rustworkx-core = { workspace = true }

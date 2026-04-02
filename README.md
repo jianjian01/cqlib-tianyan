@@ -1,5 +1,6 @@
 # cqlib-tianyan
 
+![Tianyan Quantum Computing](https://jiangsu-10.zos.ctyun.cn/qccp1/uiUpdate/img/logo.png)
 > **天衍量子云平台** 的 Rust 同步客户端库——认证、设备管理、线路提交与读取误差矫正，一站式封装。
 
 [English README](README.en.md) | [Rust 教程](docs/rust.cn.md) | [English Tutorial](docs/rust.en.md)
@@ -110,7 +111,7 @@ TaskHandle
 ├── wait(timeout, interval)              → Vec<ExecutionResult>  [尊重 calibration_mode]
 ├── wait_raw(timeout, interval)          → Vec<ExecutionResult>  [始终原始]
 ├── wait_calibrated(timeout, interval)   → Vec<ExecutionResult>  [始终矫正]
-├── wait_with_calibration(…, f00, f11)   → Vec<ExecutionResult>  [手动保真度]
+├── wait_with_calibration(timeout, interval, &cal) → Vec<ExecutionResult>  [手动指定校准数据]
 └── status()                             → Vec<ExecutionResult>  [单次快照]
 ```
 
@@ -125,7 +126,10 @@ TaskHandle
 3. 以 Kronecker 积组合为 2ᴺ × 2ᴺ 完整逆矩阵。
 4. 对观测概率向量施加逆矩阵，截断负值并重新归一化。
 
-默认 `CalibrationMode::Auto`——有数据则矫正，无数据则静默回退原始结果。详细算法说明见 [docs/rust.cn.md](docs/rust.cn.md)。
+> **内存限制：** Kronecker 积矩阵大小为 O(4ᴺ)，N=14 时约 2 GiB，N=15 时超 8 GiB。  
+> 因此 `CalibrationMode::Auto` 仅对 ≤14 个被测量子比特自动启用矫正；更大的线路需要显式指定 `CalibrationMode::Enabled`（由调用方承担内存责任）或使用 `CalibrationMode::Disabled` 禁用。
+
+详细算法说明见 [docs/rust.cn.md](docs/rust.cn.md)。
 
 ---
 
@@ -139,6 +143,35 @@ let cfg = TianyanConfig::default()
     .with_auto_refresh(false)     // 不自动刷新
     .with_credentials_path("/custom/path/creds.json");
 ```
+
+---
+
+## 🐍 Python 绑定
+
+`cqlib-tianyan` 提供了基于 [PyO3](https://pyo3.rs) 的 Python 绑定（`crates/binding-python`），可在 Python 中以原生风格调用所有核心功能。
+
+```python
+from cqlib_tianyan import TianyanPlatform, CalibrationMode
+import os
+
+# 登录
+platform = TianyanPlatform.login(os.environ["TIANYAN_API_KEY"])
+
+# 选择后端并提交线路
+backend = platform.get_backend("tianyan-287")
+task = backend.run(["H Q1\nH Q8\nCZ Q1 Q8\nH Q8\nM Q1\nM Q8"], shots=1000)
+
+# 等待结果（Auto 模式下，≤14 比特自动矫正）
+results = task.wait(timeout=120, poll_interval=5)
+print(results[0].counts())
+
+# 手动控制模式
+task2 = backend.run_with_mode(["..."], shots=1000, mode=CalibrationMode.Enabled)
+# 或使用字符串简写
+task3 = backend.run_with_mode(["..."], shots=1000, mode="disabled")
+```
+
+详细文档见 [docs/python.cn.md](docs/python.cn.md) | [docs/python.en.md](docs/python.en.md)
 
 ---
 

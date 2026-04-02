@@ -43,11 +43,8 @@ fn main() -> Result<(), cqlib_tianyan::TianyanError> {
     let backends = platform.list_backends()?;
     for b in &backends {
         println!(
-            "       - {:25}  status={:?}  qubits={:3}  toll={:?}",
-            b.name,
-            b.status,
-            b.num_qubits.unwrap_or(0),
-            b.toll,
+            "       - {:25}  status={:?} toll={:?}",
+            b.name, b.status, b.toll,
         );
     }
     println!();
@@ -57,23 +54,19 @@ fn main() -> Result<(), cqlib_tianyan::TianyanError> {
     println!("[3/7] Selecting backend '{}'...", device_name);
     let backend = platform.get_backend(device_name)?;
     println!(
-        "       ✓ id={}  status={:?}  qubits={}\n",
-        backend.name,
-        backend.status,
-        backend.num_qubits.unwrap_or(0),
+        "       ✓ id={}  status={:?} \n",
+        backend.name, backend.status,
     );
 
     println!("[4/7] Downloading calibration config...");
-    let core_device = backend.device_config()?;
-    let topo = core_device.topology();
+    let (num_qubits, num_couplings) = backend.with_device(|device| {
+        let topo = device.topology();
+        (topo.num_qubits(), topo.num_couplings())
+    })?;
     println!(
         "       Topology: {} qubits, {} couplings",
-        topo.num_qubits(),
-        topo.num_couplings()
+        num_qubits, num_couplings
     );
-    if let Some(ct) = core_device.calibration_time() {
-        println!("       Calibration time: {}", ct);
-    }
     println!();
 
     println!("[5/7] Readout calibration fidelities:");
@@ -117,42 +110,32 @@ fn main() -> Result<(), cqlib_tianyan::TianyanError> {
 
     println!("[7/7] Waiting for results (timeout=120s, interval=5s)...\n");
 
-    let cal_results = task.wait(Duration::from_secs(120), Duration::from_secs(5))?;
-    let raw_results = task.wait_raw(Duration::from_secs(120), Duration::from_secs(5))?;
+    let results = task.wait(Duration::from_secs(120), Duration::from_secs(5))?;
 
     let n_qubits: usize = 2; // Bell circuit measures Q1 and Q8
 
-    for (cal_r, raw_r) in cal_results.iter().zip(raw_results.iter()) {
-        println!("  Task ID : {}", cal_r.task_id());
+    for r in &results {
+        println!("  Task ID : {}", r.task_id());
 
-        // Collect all outcomes from both result sets, sorted numerically
-        let mut outcomes: Vec<_> = cal_r.counts().keys().chain(raw_r.counts().keys()).collect();
+        let mut outcomes: Vec<_> = r.counts().keys().collect();
         outcomes.sort_by_key(|o| usize::from_str_radix(&o.to_string(n_qubits), 2).unwrap_or(0));
-        outcomes.dedup_by(|a, b| a.to_string(n_qubits) == b.to_string(n_qubits));
 
         println!(
-            "  {:>4}  {:>10}  {:>10}  {:>10}  {:>10}",
-            "Basis", "Cal.Count", "Raw.Count", "Cal.Prob", "Raw.Prob"
+            "  {:>4}  {:>10}  {:>10}",
+            "Basis", "Count", "Prob"
         );
         for o in &outcomes {
             let basis = o.to_string(n_qubits);
-            let cc = cal_r.counts().get(*o).copied().unwrap_or(0);
-            let rc = raw_r.counts().get(*o).copied().unwrap_or(0);
-            let cp = cal_r
-                .probabilities()
-                .as_ref()
-                .and_then(|m| m.get(*o))
-                .copied()
-                .unwrap_or(0.0);
-            let rp = raw_r
+            let cc = r.counts().get(*o).copied().unwrap_or(0);
+            let cp = r
                 .probabilities()
                 .as_ref()
                 .and_then(|m| m.get(*o))
                 .copied()
                 .unwrap_or(0.0);
             println!(
-                "  {:>4}  {:>10}  {:>10}  {:>10.4}  {:>10.4}",
-                basis, cc, rc, cp, rp
+                "  {:>4}  {:>10}  {:>10.4}",
+                basis, cc, cp
             );
         }
         println!();

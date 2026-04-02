@@ -103,7 +103,8 @@ fn parse_device_config_basic() {
     let device = parse_device_config("tianyan24", &json).unwrap();
 
     assert_eq!(device.name(), "tianyan24");
-    assert_eq!(device.topology().num_qubits(), 4);
+    // Q2 is disabled → available qubits are Q0, Q1, Q3 (3 total).
+    assert_eq!(device.topology().num_qubits(), 3);
 
     // Disabled qubits
     let invalid: HashSet<Qubit> = device.invalid_qubits().collect();
@@ -159,8 +160,15 @@ fn topology_connectivity() {
     let device = parse_device_config("test", &json).unwrap();
     let topo = device.topology();
 
+    // G0 (Q1–Q0) is enabled and both endpoints are available.
     assert!(topo.is_connected(Qubit::new(1), Qubit::new(0)));
-    assert!(topo.is_connected(Qubit::new(3), Qubit::new(2)));
+
+    // G1 (Q2–Q1) and G2 (Q3–Q2) both involve Q2 which is disabled,
+    // so those edges are excluded from the topology.
+    // Q2 itself is not a topology node, so Q3–Q2 is not connected.
+    assert!(!topo.is_connected(Qubit::new(3), Qubit::new(2)));
+    // Q3 is an isolated node (all its edges involved the disabled Q2).
+    assert!(!topo.is_connected(Qubit::new(3), Qubit::new(1)));
 }
 
 #[test]
@@ -259,7 +267,8 @@ fn parse_device_config_from_string_encoded_json() {
     };
     let device = parse_device_config("test-encoded", &decoded).unwrap();
     assert_eq!(device.name(), "test-encoded");
-    assert_eq!(device.topology().num_qubits(), 4);
+    // Q2 is disabled → available qubits are Q0, Q1, Q3 (3 total).
+    assert_eq!(device.topology().num_qubits(), 3);
 }
 
 #[test]

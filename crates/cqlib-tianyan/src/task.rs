@@ -27,7 +27,7 @@ use crate::calibration;
 use crate::client::TianyanClient;
 use crate::config::{QUERY_RESULT_PATH, SUBMIT_PATH};
 use crate::device::CircuitInput;
-use crate::device_config;
+use crate::device_config::{self, ReadoutCalibrationData};
 use crate::error::TianyanError;
 use cqlib_core::circuit::Qubit;
 use cqlib_core::device::result::{ExecutionResult, Outcome, Status};
@@ -37,10 +37,28 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use time::OffsetDateTime;
 
+/// A map from qubit hardware index to `(f00, f11)` readout fidelity pair.
+///
+/// Built from [`ReadoutCalibrationData::to_cal_map`] and used internally to
+/// look up fidelities only for the qubits that were actually measured in a
+/// circuit, rather than passing the full device-wide arrays to the calibration
+/// routine (which would cause exponential 2^n × 2^n memory allocation).
+type CalibrationMap = HashMap<u32, (f64, f64)>;
+
 /// Maximum number of circuits allowed in a single submission request.
 pub const MAX_BATCH_SIZE: usize = 50;
 
-// ── CalibrationMode ───────────────────────────────────────────────────────────
+/// Maximum number of measured qubits for which [`CalibrationMode::Auto`] will
+/// automatically apply readout error mitigation.
+///
+/// Building the inverse confusion matrix requires O(4^n) memory where n is the
+/// number of measured qubits.  Above this threshold the cost becomes
+/// impractical for interactive use (> 1 GiB RAM), so `Auto` mode silently
+/// falls back to returning raw counts instead.
+///
+/// Use [`CalibrationMode::Enabled`] to override this limit when you know the
+/// circuit is small enough or you have sufficient memory.
+pub const AUTO_CALIBRATION_MAX_QUBITS: usize = 14;
 
 /// Controls whether readout error mitigation is applied when fetching results.
 ///
@@ -49,21 +67,21 @@ pub const MAX_BATCH_SIZE: usize = 50;
 ///
 /// | Variant | Behaviour |
 /// |---------|-----------|
-/// | `Auto` | Apply mitigation if calibration data is available; silently fall back to raw results otherwise. (**default**) |
-/// | `Enabled` | Always apply mitigation; return an error if no calibration data exists. |
-/// | `Disabled` | Never apply mitigation; return raw measurement counts. |
+/// | `Auto` | Apply mitigation when calibration data is available **and** the circuit measures ≤ [`AUTO_CALIBRATION_MAX_QUBITS`] (14) qubits; silently fall back to raw counts for larger circuits or missing data. (**default**) |
+/// | `Enabled` | Always apply mitigation regardless of circuit size; return an error if calibration data is unavailable. *Caller is responsible for ensuring sufficient memory.* |
+/// | `Disabled` | Never apply mitigation; always return raw measurement counts. |
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CalibrationMode {
-    /// Apply readout calibration when available; fall back to raw if not (default).
+    /// Apply readout calibration when available and circuit measures ≤ 14 qubits;
+    /// fall back to raw counts for larger circuits or if calibration is absent (default).
     #[default]
     Auto,
-    /// Always apply readout calibration; error if calibration data is unavailable.
+    /// Always apply readout calibration regardless of qubit count;
+    /// return an error if calibration data is unavailable.
     Enabled,
     /// Never apply readout calibration; always return raw counts.
     Disabled,
 }
-
-// ── Submit request / response ─────────────────────────────────────────────────
 
 /// Request body for the batch circuit submission endpoint.
 ///
@@ -92,8 +110,6 @@ struct SubmitRequest {
 struct SubmitResponseData {
     query_ids: Vec<String>,
 }
-
-// ── Query request / response ──────────────────────────────────────────────────
 
 #[derive(Serialize)]
 struct QueryRequest {
@@ -140,8 +156,6 @@ impl RawResult {
         }
     }
 }
-
-// ── Result parsing helpers ────────────────────────────────────────────────────
 
 /// Parse the `resultStatus` field into (qubit list, exact counts).
 ///
@@ -218,8 +232,6 @@ fn parse_probability(v: serde_json::Value) -> Option<HashMap<String, f64>> {
     Some(map)
 }
 
-// ── TaskHandle ─────────────────────────────────────────────────────────────────
-
 /// A batch of circuits that have been submitted to the Tianyan cloud platform.
 ///
 /// This struct stores the returned `query_ids` and a reference to the HTTP client
@@ -259,8 +271,6 @@ impl std::fmt::Debug for TaskHandle {
 }
 
 impl TaskHandle {
-    // ── Internal construction ─────────────────────────────────────────────────
-
     /// Submit `circuits` to `device_name` and return a [`TaskHandle`].
     ///
     /// Inputs larger than [`MAX_BATCH_SIZE`] are split into multiple sequential
@@ -326,8 +336,6 @@ impl TaskHandle {
         })
     }
 
-    // ── Public API ────────────────────────────────────────────────────────────
-
     /// Returns the platform query IDs for all submitted circuits.
     pub fn task_ids(&self) -> &[String] {
         &self.task_ids
@@ -345,8 +353,9 @@ impl TaskHandle {
     /// `timeout` elapses.
     ///
     /// Readout error mitigation is applied according to [`self.calibration_mode`](Self::calibration_mode):
-    /// - [`Auto`](CalibrationMode::Auto) *(default)* — calibrate if data is available, else return raw.
-    /// - [`Enabled`](CalibrationMode::Enabled) — calibrate; error if no calibration data exists.
+    /// - [`Auto`](CalibrationMode::Auto) *(default)* — calibrate if data is available **and** the
+    ///   circuit measures ≤ [`AUTO_CALIBRATION_MAX_QUBITS`] (14) qubits; else return raw.
+    /// - [`Enabled`](CalibrationMode::Enabled) — always calibrate; error if no calibration data exists.
     /// - [`Disabled`](CalibrationMode::Disabled) — always return raw counts.
     ///
     /// # Arguments
@@ -398,15 +407,20 @@ impl TaskHandle {
     /// Like [`status`](Self::status), but applies readout error mitigation to
     /// the measured probabilities before building execution results.
     ///
-    /// # Arguments
-    /// * `f00` — per-qubit P(0|0) fidelities, ordered from qubit 0 to n−1.
-    /// * `f11` — per-qubit P(1|1) fidelities, same order.
+    /// Only the fidelities for qubits that were actually measured in each circuit
+    /// are used, avoiding the O(4^n_device) memory explosion.
     pub fn status_with_calibration(
         &self,
-        f00: &[f64],
-        f11: &[f64],
+        cal: &ReadoutCalibrationData,
     ) -> Result<Vec<ExecutionResult>, TianyanError> {
-        query_results_calibrated(&self.client, &self.task_ids, self.shots, Some((f00, f11)))
+        let cal_map = cal.to_cal_map();
+        query_results_calibrated(
+            &self.client,
+            &self.task_ids,
+            self.shots,
+            Some(&cal_map),
+            self.calibration_mode,
+        )
     }
 
     /// Like [`wait`](Self::wait), but applies readout error mitigation.
@@ -414,9 +428,9 @@ impl TaskHandle {
         &self,
         timeout: Duration,
         poll_interval: Duration,
-        f00: &[f64],
-        f11: &[f64],
+        cal: &ReadoutCalibrationData,
     ) -> Result<Vec<ExecutionResult>, TianyanError> {
+        let cal_map = cal.to_cal_map();
         let start = Instant::now();
         let expected = self.task_ids.len();
 
@@ -425,7 +439,8 @@ impl TaskHandle {
                 &self.client,
                 &self.task_ids,
                 self.shots,
-                Some((f00, f11)),
+                Some(&cal_map),
+                self.calibration_mode,
             )?;
             if results.len() == expected {
                 return Ok(results);
@@ -460,9 +475,7 @@ impl TaskHandle {
     ) -> Result<Vec<ExecutionResult>, TianyanError> {
         let cal = device_config::download_device_config_full(&self.client, &self.device_name)?;
         match cal.1 {
-            Some(ref data) => {
-                self.wait_with_calibration(timeout, poll_interval, &data.f00, &data.f11)
-            }
+            Some(ref data) => self.wait_with_calibration(timeout, poll_interval, data),
             None => match self.calibration_mode {
                 CalibrationMode::Enabled => Err(TianyanError::InvalidInput(
                     "readout calibration data not available for this backend".to_string(),
@@ -472,8 +485,6 @@ impl TaskHandle {
         }
     }
 }
-
-// ── Result parsing ────────────────────────────────────────────────────────────
 
 /// Query the result endpoint for `task_ids` and parse raw responses into
 /// [`ExecutionResult`] values from `cqlib-core`.
@@ -512,11 +523,18 @@ fn query_results(
 }
 
 /// Like [`query_results`] but optionally applies readout error mitigation.
+///
+/// The `calibration_mode` parameter controls the per-circuit threshold logic:
+/// - [`CalibrationMode::Auto`] — skip calibration for circuits measuring more
+///   than [`AUTO_CALIBRATION_MAX_QUBITS`] qubits (memory safety guard).
+/// - [`CalibrationMode::Enabled`] — always calibrate regardless of qubit count.
+/// - [`CalibrationMode::Disabled`] — `cal` should already be `None`; no-op.
 fn query_results_calibrated(
     client: &TianyanClient,
     task_ids: &[String],
     shots: usize,
-    cal: Option<(&[f64], &[f64])>,
+    cal: Option<&CalibrationMap>,
+    calibration_mode: CalibrationMode,
 ) -> Result<Vec<ExecutionResult>, TianyanError> {
     let body = QueryRequest {
         query_ids: task_ids.to_vec(),
@@ -531,15 +549,19 @@ fn query_results_calibrated(
         let qid = raw.task_id_str();
 
         if let Some((qubits, counts)) = raw.result_status.and_then(parse_result_status) {
-            if let Some(er) = build_er_from_counts(&qid, shots, qubits, counts, cal) {
+            // Auto mode: skip calibration if this circuit measures too many qubits.
+            // Enabled mode: always calibrate (caller accepted the memory cost).
+            let effective_cal = match calibration_mode {
+                CalibrationMode::Auto if qubits.len() > AUTO_CALIBRATION_MAX_QUBITS => None,
+                _ => cal,
+            };
+            if let Some(er) = build_er_from_counts(&qid, shots, qubits, counts, effective_cal) {
                 results.push(er);
             }
         } else if let Some(prob_map) = raw.probability.and_then(parse_probability) {
-            let cal_map = match cal {
-                Some((f00, f11)) => calibration::calibrate_probabilities(&prob_map, f00, f11),
-                None => prob_map,
-            };
-            if let Some(er) = build_er_from_prob_map(&qid, shots, &cal_map) {
+            // For the probability-only path, we don't have the measured qubit list,
+            // so calibration cannot be applied per-qubit. Fall back to raw results.
+            if let Some(er) = build_er_from_prob_map(&qid, shots, &prob_map) {
                 results.push(er);
             }
         }
@@ -550,20 +572,45 @@ fn query_results_calibrated(
 /// Build an [`ExecutionResult`] from exact shot counts derived from `resultStatus`.
 ///
 /// If `cal` is provided, raw probabilities are corrected via the inverse
-/// confusion matrix and rounded back to integer counts.
+/// confusion matrix built **only** from the qubits actually measured in this
+/// circuit.  This prevents the O(4^n) memory explosion that occurs when the
+/// full device calibration map (all device qubits) is used naively.
 fn build_er_from_counts(
     task_id: &str,
     shots: usize,
     qubits: Vec<Qubit>,
     mut counts: HashMap<Outcome, usize>,
-    cal: Option<(&[f64], &[f64])>,
+    cal: Option<&CalibrationMap>,
 ) -> Option<ExecutionResult> {
     if counts.is_empty() {
         return None;
     }
     let n = qubits.len();
 
-    if let Some((f00, f11)) = cal {
+    if let Some(cal_map) = cal {
+        // Extract fidelities only for the qubits that were actually measured,
+        // in the same order they appear in the measurement bitstring.
+        // This keeps the confusion matrix at 2^n_measured × 2^n_measured instead
+        // of 2^n_device × 2^n_device (which would be gigabytes for large chips).
+        let local_f00: Vec<f64> = qubits
+            .iter()
+            .map(|q| {
+                cal_map
+                    .get(&(q.index() as u32))
+                    .map(|&(f0, _)| f0)
+                    .unwrap_or(1.0)
+            })
+            .collect();
+        let local_f11: Vec<f64> = qubits
+            .iter()
+            .map(|q| {
+                cal_map
+                    .get(&(q.index() as u32))
+                    .map(|&(_, f1)| f1)
+                    .unwrap_or(1.0)
+            })
+            .collect();
+
         // Convert counts → bitstring-keyed probabilities → calibrate → back to counts.
         let total: usize = counts.values().sum();
         let inv = 1.0 / total as f64;
@@ -571,7 +618,7 @@ fn build_er_from_counts(
             .iter()
             .map(|(o, &c)| (o.to_string(n), c as f64 * inv))
             .collect();
-        let cal_probs = calibration::calibrate_probabilities(&prob_str, f00, f11);
+        let cal_probs = calibration::calibrate_probabilities(&prob_str, &local_f00, &local_f11);
         counts = cal_probs
             .into_iter()
             .filter_map(|(bitstr, p)| {

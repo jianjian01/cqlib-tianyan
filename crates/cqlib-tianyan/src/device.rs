@@ -33,8 +33,6 @@ use cqlib_core::ir::qcis::dumps;
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 
-// ── CircuitInput ──────────────────────────────────────────────────────────────
-
 /// A single circuit ready for submission, either as a raw QCIS string or a
 /// `cqlib-core` [`Circuit`] object.
 ///
@@ -79,8 +77,6 @@ impl From<Circuit> for CircuitInput {
     }
 }
 
-// ── DeviceStatus ──────────────────────────────────────────────────────────────
-
 /// Operational status of a quantum device.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeviceStatus {
@@ -108,8 +104,6 @@ impl DeviceStatus {
     }
 }
 
-// ── DeviceToll ────────────────────────────────────────────────────────────────
-
 /// Pricing model of a quantum device.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeviceToll {
@@ -128,8 +122,6 @@ impl DeviceToll {
     }
 }
 
-// ── Raw API response types ────────────────────────────────────────────────────
-
 #[derive(Deserialize)]
 struct RawDevice {
     /// Unique machine identifier used as `computerCode` in submission requests.
@@ -141,9 +133,6 @@ struct RawDevice {
     /// Pricing tier code (1=free, 2=paid).
     #[serde(rename = "isToll")]
     is_toll: Option<i64>,
-    /// Total qubit count if reported.
-    #[serde(rename = "qubitNum")]
-    qubit_num: Option<u32>,
 }
 
 /// Cached device calibration data (loaded lazily on first access).
@@ -166,8 +155,6 @@ pub struct TianyanBackend {
     pub status: DeviceStatus,
     /// Pricing model.
     pub toll: DeviceToll,
-    /// Total number of physical qubits, if reported by the platform.
-    pub num_qubits: Option<u32>,
     /// Shared HTTP client used by [`TianyanBackend::run`].
     pub(crate) client: Arc<TianyanClient>,
     /// Lazily-loaded device configuration (topology + calibration).
@@ -181,9 +168,13 @@ impl Clone for TianyanBackend {
             display_name: self.display_name.clone(),
             status: self.status.clone(),
             toll: self.toll.clone(),
-            num_qubits: self.num_qubits,
             client: self.client.clone(),
-            cached_config: Mutex::new(self.cached_config.lock().unwrap().clone()),
+            cached_config: Mutex::new(
+                self.cached_config
+                    .lock()
+                    .expect("cached_config mutex poisoned during clone")
+                    .clone(),
+            ),
         }
     }
 }
@@ -195,7 +186,6 @@ impl std::fmt::Debug for TianyanBackend {
             .field("display_name", &self.display_name)
             .field("status", &self.status)
             .field("toll", &self.toll)
-            .field("num_qubits", &self.num_qubits)
             .finish()
     }
 }
@@ -208,7 +198,6 @@ impl TianyanBackend {
             name: raw.code,
             status: DeviceStatus::from_code(raw.status),
             toll: DeviceToll::from_code(raw.is_toll.unwrap_or(0)),
-            num_qubits: raw.qubit_num,
             client,
             cached_config: Mutex::new(None),
         }
@@ -224,7 +213,10 @@ impl TianyanBackend {
     where
         F: FnOnce(&CachedConfig) -> R,
     {
-        let mut guard = self.cached_config.lock().unwrap();
+        let mut guard = self
+            .cached_config
+            .lock()
+            .map_err(|_| TianyanError::InvalidInput("cached_config mutex poisoned".into()))?;
         if guard.is_none() {
             let (device, calibration) =
                 device_config::download_device_config_full(&self.client, &self.name)?;
@@ -233,14 +225,38 @@ impl TianyanBackend {
                 calibration,
             });
         }
-        Ok(f(guard.as_ref().unwrap()))
+        Ok(f(guard.as_ref().expect("guard was just populated")))
     }
 
-    /// Download (or return cached) calibration configuration as a
-    /// [`cqlib_core::device::Device`] populated with topology, qubit properties,
-    /// gate errors, and readout fidelities.
-    pub fn device_config(&self) -> Result<Device, TianyanError> {
-        self.with_config(|c| c.device.clone())
+    /// Access the device configuration with a closure.
+    ///
+    /// This method downloads (or returns cached) calibration configuration and
+    /// provides access to the underlying [`cqlib_core::device::Device`] which
+    /// contains topology, qubit properties, gate errors, and readout fidelities.
+    ///
+    /// If the API did not report qubit count, it will be computed from the
+    /// device topology on first access.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use cqlib_tianyan::TianyanPlatform;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let platform = TianyanPlatform::login("test_key")?;
+    /// # let backend = platform.get_backend("tianyan-287")?;
+    /// backend.with_device(|device| {
+    ///     println!("Qubits: {}", device.qubits().count());
+    ///     println!("Couplings: {}", device.topology().num_couplings());
+    /// })?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_device<F, R>(&self, f: F) -> Result<R, TianyanError>
+    where
+        F: FnOnce(&Device) -> R,
+    {
+        self.with_config(|c| f(&c.device))
     }
 
     /// Download (or return cached) readout calibration data suitable for
@@ -304,8 +320,6 @@ impl TianyanBackend {
         self.run_with_mode(circuits, shots, CalibrationMode::Disabled)
     }
 }
-
-// ── Device listing ────────────────────────────────────────────────────────────
 
 /// Fetch the full device list from the platform and return it as [`TianyanBackend`] objects.
 pub fn list_backends(client: Arc<TianyanClient>) -> Result<Vec<TianyanBackend>, TianyanError> {

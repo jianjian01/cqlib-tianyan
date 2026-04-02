@@ -1,0 +1,31 @@
+[build-system]
+requires = ["maturin>=1.11,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "cqlib-tianyan"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = ["cqlib>=0.1.0"]
+dynamic = ["version"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as requiring API access (may be slow)",
+    "slow: marks tests as slow (long timeouts, waits for results)",
+]
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "cqlib_tianyan._cqlib_tianyan"
+include-python-files = ["cqlib_tianyan/**", ]
+sdist-include = ["Cargo.toml", "Cargo.lock", "src/**/*", "cqlib_tianyan/**/*"]

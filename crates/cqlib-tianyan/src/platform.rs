@@ -22,22 +22,22 @@
 //! use std::time::Duration;
 //!
 //! fn main() -> Result<(), cqlib_tianyan::TianyanError> {
-//!     // ── First-time login ────────────────────────────────────────────────────
+//!     // First-time login
 //!     // Credentials are saved to ~/.cqlib/tianyan/credentials.json
 //!     let api_key = std::env::var("TIANYAN_API_KEY").expect("set TIANYAN_API_KEY");
 //!     let platform = TianyanPlatform::login(&api_key)?;
 //!
-//!     // ── Subsequent runs ─────────────────────────────────────────────────────
+//!     // Subsequent runs
 //!     // Reload from disk; re-login automatically if the token has expired.
 //!     // let platform = TianyanPlatform::from_credentials()?;
 //!
-//!     // ── Backend discovery ────────────────────────────────────────────────────
+//!     // Backend discovery
 //!     let backends = platform.list_backends()?;
 //!     for b in &backends {
 //!         println!("{} ({:?})", b.name, b.status);
 //!     }
 //!
-//!     // ── Submit via a backend handle ──────────────────────────────────────────
+//!     // Submit via a backend handle
 //!     // Bell state: H Q1 + CNOT(Q1→Q8), decomposed as H·CZ·H on target
 //!     let backend = platform.get_backend("tianyan-287")?;
 //!     let task = backend.run(
@@ -45,7 +45,7 @@
 //!         1000,
 //!     )?;
 //!
-//!     // ── Poll for results ─────────────────────────────────────────────────────
+//!     // Poll for results
 //!     let results = task.wait(Duration::from_secs(120), Duration::from_secs(5))?;
 //!     for r in &results {
 //!         println!("counts: {:?}", r.counts());
@@ -71,8 +71,6 @@ pub struct TianyanPlatform {
 }
 
 impl TianyanPlatform {
-    // ── Constructors ──────────────────────────────────────────────────────────
-
     /// Authenticate with `api_key`.
     ///
     /// By default credentials are saved to `~/.cqlib/tianyan/credentials.json`
@@ -98,7 +96,7 @@ impl TianyanPlatform {
             save_credentials(&creds, &config.credentials_path)?;
         }
         Ok(Self {
-            client: Arc::new(TianyanClient::new(config, creds)),
+            client: Arc::new(TianyanClient::new(config, creds)?),
         })
     }
 
@@ -139,11 +137,9 @@ impl TianyanPlatform {
         }
 
         Ok(Self {
-            client: Arc::new(TianyanClient::new(config, creds)),
+            client: Arc::new(TianyanClient::new(config, creds)?),
         })
     }
-
-    // ── Backend API ────────────────────────────────────────────────────────────
 
     /// Fetch the full list of quantum backends from the platform.
     pub fn list_backends(&self) -> Result<Vec<TianyanBackend>, TianyanError> {
@@ -161,8 +157,6 @@ impl TianyanPlatform {
             .find(|d| d.name == name)
             .ok_or_else(|| TianyanError::DeviceNotFound(name.to_string()))
     }
-
-    // ── Submission shortcut ───────────────────────────────────────────────────
 
     /// Submit circuits directly without first fetching a [`TianyanBackend`] handle.
     ///

@@ -1,5 +1,7 @@
 # cqlib-tianyan
 
+![Tianyan Quantum Computing](https://jiangsu-10.zos.ctyun.cn/qccp1/uiUpdate/img/logo.png)
+
 > Synchronous Rust client for the **Tianyan Quantum Cloud Platform** — authentication, device management, circuit submission, and readout error mitigation in one clean API.
 
 [中文 README](README.md) | [English Tutorial](docs/rust.en.md) | [中文教程](docs/rust.cn.md)
@@ -111,7 +113,7 @@ TaskHandle
 ├── wait(timeout, interval)              → Vec<ExecutionResult>  [respects calibration_mode]
 ├── wait_raw(timeout, interval)          → Vec<ExecutionResult>  [always raw]
 ├── wait_calibrated(timeout, interval)   → Vec<ExecutionResult>  [always calibrated]
-├── wait_with_calibration(…, f00, f11)   → Vec<ExecutionResult>  [explicit fidelities]
+├── wait_with_calibration(timeout, interval, &cal) → Vec<ExecutionResult>  [explicit calibration data]
 └── status()                             → Vec<ExecutionResult>  [single snapshot]
 ```
 
@@ -126,7 +128,10 @@ Readout correction uses the **inverse confusion matrix** method:
 3. Combine into a 2ᴺ × 2ᴺ full inverse via Kronecker product.
 4. Apply the inverse to the measured probability vector, clamp negatives to 0, and renormalise.
 
-The default `CalibrationMode::Auto` applies correction when data is available and silently falls back to raw counts otherwise. See [docs/rust.en.md](docs/rust.en.md) for the full algorithm derivation.
+> **Memory limit:** The Kronecker product matrix is O(4ᴺ) — approximately 2 GiB at N=14, over 8 GiB at N=15.  
+> Therefore `CalibrationMode::Auto` automatically applies correction only when ≤ 14 qubits are measured. Larger circuits must explicitly use `CalibrationMode::Enabled` (caller assumes memory responsibility) or `CalibrationMode::Disabled`.
+
+See [docs/rust.en.md](docs/rust.en.md) for the full algorithm derivation.
 
 ---
 
@@ -149,6 +154,34 @@ use cqlib_tianyan::task::CalibrationMode;
 let task = backend.run_with_mode(circuits, shots, CalibrationMode::Enabled)?;  // require calibration
 let task = backend.run_raw(circuits, shots)?;                                   // skip calibration
 ```
+
+---
+
+## 🐍 Python Bindings
+
+`cqlib-tianyan` ships [PyO3](https://pyo3.rs)-based Python bindings (`crates/binding-python`) that expose all core functionality with a Pythonic API.
+
+```python
+from cqlib_tianyan import TianyanPlatform, CalibrationMode
+import os
+
+# Authenticate
+platform = TianyanPlatform.login(os.environ["TIANYAN_API_KEY"])
+
+# Select backend and submit a circuit
+backend = platform.get_backend("tianyan-287")
+task = backend.run(["H Q1\nH Q8\nCZ Q1 Q8\nH Q8\nM Q1\nM Q8"], shots=1000)
+
+# Wait for results (Auto mode: ≤14 qubits → automatic correction)
+results = task.wait(timeout=120, poll_interval=5)
+print(results[0].counts())
+
+# Explicit mode — accepts CalibrationMode enum or string
+task2 = backend.run_with_mode(["..."], shots=1000, mode=CalibrationMode.Enabled)
+task3 = backend.run_with_mode(["..."], shots=1000, mode="disabled")
+```
+
+Full documentation: [docs/python.en.md](docs/python.en.md) | [docs/python.cn.md](docs/python.cn.md)
 
 ---
 

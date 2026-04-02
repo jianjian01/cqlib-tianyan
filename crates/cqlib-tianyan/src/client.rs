@@ -32,8 +32,6 @@ const MAX_RETRIES: u32 = 2;
 /// Base delay for exponential backoff.
 const BASE_RETRY_DELAY: Duration = Duration::from_secs(1);
 
-// ── API envelope ──────────────────────────────────────────────────────────────
-
 /// Standard response envelope used by all Tianyan platform APIs.
 #[derive(Deserialize)]
 pub struct ApiResponse<T> {
@@ -62,8 +60,6 @@ impl<T> ApiResponse<T> {
     }
 }
 
-// ── Client ────────────────────────────────────────────────────────────────────
-
 /// Synchronous HTTP client with automatic token management and retry logic.
 pub struct TianyanClient {
     http: reqwest::blocking::Client,
@@ -73,23 +69,28 @@ pub struct TianyanClient {
 
 impl TianyanClient {
     /// Construct a new client from existing credentials.
-    pub fn new(config: TianyanConfig, credentials: Credentials) -> Self {
-        Self {
-            http: reqwest::blocking::Client::builder()
-                .timeout(Duration::from_secs(60))
-                .build()
-                .expect("failed to build HTTP client"),
+    ///
+    /// Returns an error if the underlying HTTP client cannot be initialised
+    /// (extremely rare — only if OS TLS setup fails).
+    pub fn new(config: TianyanConfig, credentials: Credentials) -> Result<Self, TianyanError> {
+        let http = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()
+            .map_err(TianyanError::Http)?;
+        Ok(Self {
+            http,
             config,
             credentials: Arc::new(Mutex::new(credentials)),
-        }
+        })
     }
 
     /// Return a clone of the current credentials.
-    pub fn credentials(&self) -> Credentials {
-        self.credentials.lock().unwrap().clone()
+    pub fn credentials(&self) -> Result<Credentials, TianyanError> {
+        self.credentials
+            .lock()
+            .map(|g| g.clone())
+            .map_err(|_| TianyanError::Auth("credential mutex poisoned".into()))
     }
-
-    // ── Internal helpers ──────────────────────────────────────────────────────
 
     /// Build the two auth headers expected by the Tianyan platform.
     fn auth_headers(token: &str) -> reqwest::header::HeaderMap {
@@ -110,7 +111,10 @@ impl TianyanClient {
     /// Re-login using the stored `api_key` and update the token in place.
     fn refresh_token(&self) -> Result<String, TianyanError> {
         let api_key = {
-            let guard = self.credentials.lock().unwrap();
+            let guard = self
+                .credentials
+                .lock()
+                .map_err(|_| TianyanError::Auth("credential mutex poisoned".into()))?;
             guard.api_key.clone()
         };
         let new_creds = auth::login(&api_key, &self.config)?;
@@ -120,7 +124,10 @@ impl TianyanClient {
         auth::save_credentials(&new_creds, &self.config.credentials_path)?;
 
         {
-            let mut guard = self.credentials.lock().unwrap();
+            let mut guard = self
+                .credentials
+                .lock()
+                .map_err(|_| TianyanError::Auth("credential mutex poisoned".into()))?;
             *guard = new_creds;
         }
         Ok(token)
@@ -128,7 +135,10 @@ impl TianyanClient {
 
     /// Get the current token, proactively refreshing if expired.
     fn current_token(&self) -> Result<String, TianyanError> {
-        let guard = self.credentials.lock().unwrap();
+        let guard = self
+            .credentials
+            .lock()
+            .map_err(|_| TianyanError::Auth("credential mutex poisoned".into()))?;
         if guard.is_token_expired() {
             drop(guard);
             self.refresh_token()
@@ -230,8 +240,6 @@ impl TianyanClient {
 
         Err(last_err.unwrap())
     }
-
-    // ── Public HTTP methods ───────────────────────────────────────────────────
 
     /// Authenticated GET request; deserialises into `ApiResponse<T>`.
     pub fn get<T: DeserializeOwned>(&self, path: &str) -> Result<ApiResponse<T>, TianyanError> {

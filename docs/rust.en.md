@@ -267,23 +267,34 @@ if let Some(cal) = backend.readout_calibration_data()? {
 
 ### 6.5 Auto-calibration (recommended)
 
-`wait()` automatically downloads and applies calibration when data is available:
+`wait()` uses the `CalibrationMode::Auto` strategy (default) and automatically downloads and applies calibration when **both** conditions are met:
+1. Calibration data is available on the backend.
+2. The circuit measures **≤ `AUTO_CALIBRATION_MAX_QUBITS` (14) qubits**.
+
+> **Why the 14-qubit limit?**  
+> The inverse confusion matrix requires O(4ⁿ) memory where n is the number of measured qubits. At n = 14 that is ~2 GiB; at n = 15 it is ~8 GiB. Above this threshold `Auto` silently falls back to raw counts to prevent out-of-memory crashes. Use `CalibrationMode::Enabled` if you need to force calibration on larger circuits and have sufficient RAM.
 
 ```rust
-// CalibrationMode::Auto is the default — no extra code needed:
+// CalibrationMode::Auto is the default — auto-calibrates for ≤ 14 measured qubits:
 let results = task.wait(Duration::from_secs(120), Duration::from_secs(5))?;
 ```
 
 ### 6.6 Manual calibration with explicit fidelities
 
+Supply a `ReadoutCalibrationData` value obtained from `backend.readout_calibration_data()`.
+Only the fidelities for the qubits actually measured in each circuit are used; the library
+filters by hardware qubit index automatically.
+
 ```rust
-// Manually supply f00 and f11 vectors (ordered qubit 0 to N-1)
-let results = task.wait_with_calibration(
-    Duration::from_secs(120),
-    Duration::from_secs(5),
-    &[0.9525, 0.9689],  // f00 for Q1, Q8
-    &[0.8180, 0.9352],  // f11 for Q1, Q8
-)?;
+use cqlib_tianyan::device_config::ReadoutCalibrationData;
+
+if let Some(cal) = backend.readout_calibration_data()? {
+    let results = task.wait_with_calibration(
+        Duration::from_secs(120),
+        Duration::from_secs(5),
+        &cal,
+    )?;
+}
 ```
 
 ### 6.7 Comparing calibrated vs. raw
@@ -325,9 +336,11 @@ Results are returned in the same order as the submitted circuits.
 
 | Variant | Behaviour |
 |---------|-----------|
-| `Auto` *(default)* | Apply calibration if data available; silently fall back to raw otherwise |
-| `Enabled` | Always calibrate; return error if no calibration data |
-| `Disabled` | Always return raw counts |
+| `Auto` *(default)* | Apply calibration when data is available **and** the circuit measures ≤ 14 qubits; silently fall back to raw counts otherwise |
+| `Enabled` | Always calibrate regardless of qubit count; return error if no calibration data (caller is responsible for sufficient RAM) |
+| `Disabled` | Always return raw counts; no mitigation applied |
+
+> **The 14-qubit threshold**: the inverse confusion matrix needs O(4ⁿ) memory; for n > 14 this exceeds 2 GiB, so `Auto` falls back automatically. See `AUTO_CALIBRATION_MAX_QUBITS`.
 
 Set at submission time:
 

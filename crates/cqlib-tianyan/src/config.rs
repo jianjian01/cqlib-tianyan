@@ -33,12 +33,8 @@ pub const QUERY_RESULT_PATH: &str = "/qccp-quantum/sdk/experiment/result/find";
 /// Device calibration configuration download endpoint (append `/{machine}`).
 pub const DOWNLOAD_CONFIG_PATH: &str = "/qccp-quantum/sdk/experiment/download/config";
 
-// ── Defaults ─────────────────────────────────────────────────────────────────
-
 const DEFAULT_SCHEME: &str = "https";
 const DEFAULT_DOMAIN: &str = "qc.zdxlz.com";
-
-// ── Config struct ─────────────────────────────────────────────────────────────
 
 /// Runtime configuration for the Tianyan platform client.
 ///
@@ -116,8 +112,6 @@ impl TianyanConfig {
         format!("{}://{}", self.scheme, self.domain)
     }
 }
-
-// ── Platform-aware credential path ───────────────────────────────────────────
 
 /// Returns the default credentials file path for the current platform.
 ///

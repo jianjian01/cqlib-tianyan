@@ -96,7 +96,9 @@ def device_name() -> str | None:
 
 
 @pytest.fixture
-def available_backend(platform: TianyanPlatform, device_name: str | None) -> TianyanBackend:
+def available_backend(
+    platform: TianyanPlatform, device_name: str | None
+) -> TianyanBackend:
     """Get backend for testing.
 
     If TIANYAN_DEVICE environment variable is set, use that specific device.
@@ -107,7 +109,9 @@ def available_backend(platform: TianyanPlatform, device_name: str | None) -> Tia
         try:
             backend = platform.get_backend(device_name)
             if not backend.is_available():
-                pytest.skip(f"Specified device '{device_name}' is not available (status: {backend.status})")
+                pytest.skip(
+                    f"Specified device '{device_name}' is not available (status: {backend.status})"
+                )
             return backend
         except Exception as e:
             pytest.skip(f"Failed to get specified device '{device_name}': {e}")
@@ -140,7 +144,7 @@ class TestTianyanError:
     def test_error_type_exists(self) -> None:
         """TianyanError type is exported from module."""
         assert TianyanError is not None
-        assert hasattr(TianyanError, '__name__')
+        assert hasattr(TianyanError, "__name__")
 
 
 class TestTianyanConfig:
@@ -308,7 +312,9 @@ class TestCalibrationMode:
 class TestTianyanPlatformAuth:
     """Integration tests for platform authentication."""
 
-    def test_login_with_valid_key(self, api_key: str | None, domain: str | None) -> None:
+    def test_login_with_valid_key(
+        self, api_key: str | None, domain: str | None
+    ) -> None:
         """Login with valid API key succeeds."""
         if not api_key:
             pytest.skip("TIANYAN_API_KEY not set")
@@ -333,7 +339,7 @@ class TestTianyanPlatformAuth:
             TianyanPlatform.login(**kwargs)
 
     def test_login_without_save_credentials(
-            self, api_key: str | None, domain: str | None
+        self, api_key: str | None, domain: str | None
     ) -> None:
         """Login with save_credentials=False does not persist."""
         if not api_key:
@@ -437,7 +443,7 @@ class TestCircuitSubmission:
     """Integration tests for circuit submission."""
 
     def test_run_single_circuit(
-            self, available_backend: TianyanBackend, simple_circuit: str
+        self, available_backend: TianyanBackend, simple_circuit: str
     ) -> None:
         """Single circuit can be submitted and executed."""
         task = available_backend.run([simple_circuit], shots=100)
@@ -448,7 +454,7 @@ class TestCircuitSubmission:
         assert len(task.task_ids) == 1
 
     def test_run_multiple_circuits(
-            self, available_backend: TianyanBackend, simple_circuit: str
+        self, available_backend: TianyanBackend, simple_circuit: str
     ) -> None:
         """Multiple circuits can be submitted in one batch."""
         circuits = [simple_circuit, "X Q1\nM Q1"]
@@ -456,14 +462,16 @@ class TestCircuitSubmission:
 
         assert len(task.task_ids) == 2
 
-    def test_run_raw(self, available_backend: TianyanBackend, simple_circuit: str) -> None:
+    def test_run_raw(
+        self, available_backend: TianyanBackend, simple_circuit: str
+    ) -> None:
         """Raw execution returns uncalibrated counts."""
         task = available_backend.run_raw([simple_circuit], shots=100)
 
         assert isinstance(task, TaskHandle)
 
     def test_run_with_mode(
-            self, available_backend: TianyanBackend, simple_circuit: str
+        self, available_backend: TianyanBackend, simple_circuit: str
     ) -> None:
         """Execution with explicit calibration mode."""
         task = available_backend.run_with_mode(
@@ -473,14 +481,14 @@ class TestCircuitSubmission:
         assert isinstance(task, TaskHandle)
 
     def test_run_with_invalid_mode(
-            self, available_backend: TianyanBackend, simple_circuit: str
+        self, available_backend: TianyanBackend, simple_circuit: str
     ) -> None:
         """Invalid calibration mode raises error."""
         with pytest.raises(ValueError):
             available_backend.run_with_mode([simple_circuit], shots=100, mode="invalid")
 
     def test_task_handle_properties(
-            self, available_backend: TianyanBackend, simple_circuit: str
+        self, available_backend: TianyanBackend, simple_circuit: str
     ) -> None:
         """TaskHandle has expected properties."""
         task = available_backend.run([simple_circuit], shots=100)
@@ -492,7 +500,7 @@ class TestCircuitSubmission:
         assert isinstance(task.submitted_at, str)
 
     def test_task_handle_repr(
-            self, available_backend: TianyanBackend, simple_circuit: str
+        self, available_backend: TianyanBackend, simple_circuit: str
     ) -> None:
         """TaskHandle repr contains useful information."""
         task = available_backend.run([simple_circuit], shots=100)
@@ -503,7 +511,10 @@ class TestCircuitSubmission:
         assert "shots" in repr_str.lower()
 
     def test_platform_submit(
-            self, platform: TianyanPlatform, available_backend: TianyanBackend, simple_circuit: str
+        self,
+        platform: TianyanPlatform,
+        available_backend: TianyanBackend,
+        simple_circuit: str,
     ) -> None:
         """Circuits can be submitted via platform shortcut."""
         task = platform.submit(
@@ -522,7 +533,7 @@ class TestResultRetrieval:
 
     @pytest.mark.slow
     def test_wait_for_results(
-            self, available_backend: TianyanBackend, simple_circuit: str
+        self, available_backend: TianyanBackend, simple_circuit: str
     ) -> None:
         """Results can be retrieved via wait()."""
         task = available_backend.run([simple_circuit], shots=100)
@@ -540,7 +551,7 @@ class TestResultRetrieval:
         assert result.shots == 100
 
     def test_status_non_blocking(
-            self, available_backend: TianyanBackend, simple_circuit: str
+        self, available_backend: TianyanBackend, simple_circuit: str
     ) -> None:
         """Status returns immediately without blocking."""
         task = available_backend.run([simple_circuit], shots=100)
@@ -553,7 +564,7 @@ class TestResultRetrieval:
 
     @pytest.mark.slow
     def test_wait_raw_results(
-            self, available_backend: TianyanBackend, simple_circuit: str
+        self, available_backend: TianyanBackend, simple_circuit: str
     ) -> None:
         """Raw results can be retrieved."""
         task = available_backend.run_raw([simple_circuit], shots=100)
@@ -565,7 +576,7 @@ class TestResultRetrieval:
 
     @pytest.mark.slow
     def test_wait_timeout(
-            self, available_backend: TianyanBackend, simple_circuit: str
+        self, available_backend: TianyanBackend, simple_circuit: str
     ) -> None:
         """Wait with very short timeout may raise error."""
         task = available_backend.run([simple_circuit], shots=100)
@@ -590,20 +601,22 @@ class TestEdgeCases:
             # Either behavior is acceptable
             pass
 
-    def test_zero_shots(self, available_backend: TianyanBackend, simple_circuit: str) -> None:
+    def test_zero_shots(
+        self, available_backend: TianyanBackend, simple_circuit: str
+    ) -> None:
         """Zero shots handling."""
         # This may raise error or be handled by platform
         with pytest.raises(Exception):
             available_backend.run([simple_circuit], shots=0)
 
-    def test_negative_shots(self, available_backend: TianyanBackend, simple_circuit: str) -> None:
+    def test_negative_shots(
+        self, available_backend: TianyanBackend, simple_circuit: str
+    ) -> None:
         """Negative shots should raise error."""
         with pytest.raises(Exception):
             available_backend.run([simple_circuit], shots=-1)
 
-    def test_invalid_circuit_syntax(
-            self, available_backend: TianyanBackend
-    ) -> None:
+    def test_invalid_circuit_syntax(self, available_backend: TianyanBackend) -> None:
         """Invalid circuit syntax handling."""
         invalid_circuit = "INVALID_GATE Q1"
 
@@ -618,9 +631,7 @@ class TestEdgeCases:
             # Immediate rejection is also valid
             pass
 
-    def test_very_long_circuit(
-            self, available_backend: TianyanBackend
-    ) -> None:
+    def test_very_long_circuit(self, available_backend: TianyanBackend) -> None:
         """Very long circuit handling."""
         # Create a long circuit (1000 gates)
         long_circuit = "\n".join([f"H Q{i % 10}" for i in range(1000)]) + "\nM Q1"

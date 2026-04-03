@@ -120,10 +120,7 @@ fn main() -> Result<(), cqlib_tianyan::TianyanError> {
         let mut outcomes: Vec<_> = r.counts().keys().collect();
         outcomes.sort_by_key(|o| usize::from_str_radix(&o.to_string(n_qubits), 2).unwrap_or(0));
 
-        println!(
-            "  {:>4}  {:>10}  {:>10}",
-            "Basis", "Count", "Prob"
-        );
+        println!("  {:>4}  {:>10}  {:>10}", "Basis", "Count", "Prob");
         for o in &outcomes {
             let basis = o.to_string(n_qubits);
             let cc = r.counts().get(*o).copied().unwrap_or(0);
@@ -133,10 +130,7 @@ fn main() -> Result<(), cqlib_tianyan::TianyanError> {
                 .and_then(|m| m.get(*o))
                 .copied()
                 .unwrap_or(0.0);
-            println!(
-                "  {:>4}  {:>10}  {:>10.4}",
-                basis, cc, cp
-            );
+            println!("  {:>4}  {:>10}  {:>10.4}", basis, cc, cp);
         }
         println!();
     }

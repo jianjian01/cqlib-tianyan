@@ -271,7 +271,7 @@ if let Some(cal) = backend.readout_calibration_data()? {
 1. 后端存在可用的校准数据。
 2. 本次电路**测量的量子比特数 ≤ `AUTO_CALIBRATION_MAX_QUBITS`（14）**。
 
-> **为何有 14 比特的限制？**  
+> **为何有 14 比特的限制？**
 > 逆混淆矩阵的内存占用为 O(4ⁿ)，其中 n 为被测比特数。n = 14 时约 2 GiB；n = 15 时约 8 GiB。超过此阈值，`Auto` 模式会静默回退到原始计数以防止内存溢出（OOM）。如需对较大电路强制应用矫正，请改用 `CalibrationMode::Enabled`（调用方需自行保证内存充足）。
 
 ```rust

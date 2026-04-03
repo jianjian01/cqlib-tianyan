@@ -26,7 +26,7 @@ use cqlib_tianyan::device::{DeviceStatus, DeviceToll, TianyanBackend};
 use cqlib_tianyan::task::CalibrationMode;
 use std::os::raw::{c_char, c_int};
 
-use crate::error::{set_last_error, clear_last_error};
+use crate::error::{clear_last_error, set_last_error};
 use crate::platform::collect_circuits;
 use crate::task::TianyanTaskC;
 
@@ -39,7 +39,9 @@ pub struct TianyanBackendC(pub(crate) TianyanBackend);
 /// be freed by the caller.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_backend_name(backend: *const TianyanBackendC) -> *const c_char {
-    if backend.is_null() { return std::ptr::null(); }
+    if backend.is_null() {
+        return std::ptr::null();
+    }
     // SAFETY: created by this crate; name is a Rust String stored inside the struct.
     let b = unsafe { &*backend };
     // Return a pointer into the Rust String — valid as long as `backend` is alive.
@@ -52,7 +54,9 @@ pub extern "C" fn tianyan_backend_name(backend: *const TianyanBackendC) -> *cons
 /// be freed by the caller.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_backend_display_name(backend: *const TianyanBackendC) -> *const c_char {
-    if backend.is_null() { return std::ptr::null(); }
+    if backend.is_null() {
+        return std::ptr::null();
+    }
     let b = unsafe { &*backend };
     b.0.display_name.as_ptr() as *const c_char
 }
@@ -68,7 +72,9 @@ pub extern "C" fn tianyan_backend_display_name(backend: *const TianyanBackendC) 
 /// | -1   | Unknown             |
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_backend_status(backend: *const TianyanBackendC) -> c_int {
-    if backend.is_null() { return -1; }
+    if backend.is_null() {
+        return -1;
+    }
     let b = unsafe { &*backend };
     match b.0.status {
         DeviceStatus::Running => 0,
@@ -88,7 +94,9 @@ pub extern "C" fn tianyan_backend_status(backend: *const TianyanBackendC) -> c_i
 /// | -1   | Unknown |
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_backend_toll(backend: *const TianyanBackendC) -> c_int {
-    if backend.is_null() { return -1; }
+    if backend.is_null() {
+        return -1;
+    }
     let b = unsafe { &*backend };
     match b.0.toll {
         DeviceToll::Free => 1,
@@ -100,7 +108,9 @@ pub extern "C" fn tianyan_backend_toll(backend: *const TianyanBackendC) -> c_int
 /// Return `true` if the backend is in `Running` status and accepting jobs.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_backend_is_available(backend: *const TianyanBackendC) -> bool {
-    if backend.is_null() { return false; }
+    if backend.is_null() {
+        return false;
+    }
     let b = unsafe { &*backend };
     b.0.is_available()
 }
@@ -142,7 +152,9 @@ fn parse_calibration_mode(mode: c_int) -> Result<CalibrationMode, String> {
         0 => Ok(CalibrationMode::Auto),
         1 => Ok(CalibrationMode::Enabled),
         2 => Ok(CalibrationMode::Disabled),
-        other => Err(format!("Unknown CalibrationMode code {other}; expected 0=Auto, 1=Enabled, 2=Disabled")),
+        other => Err(format!(
+            "Unknown CalibrationMode code {other}; expected 0=Auto, 1=Enabled, 2=Disabled"
+        )),
     }
 }
 
@@ -167,12 +179,18 @@ pub extern "C" fn tianyan_backend_run(
     }
     let circuit_inputs = match collect_circuits(circuits, n_circuits) {
         Ok(v) => v,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     let b = unsafe { &*backend };
     match b.0.run(circuit_inputs, shots) {
         Ok(t) => Box::into_raw(Box::new(TianyanTaskC(t))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -191,12 +209,18 @@ pub extern "C" fn tianyan_backend_run_raw(
     }
     let circuit_inputs = match collect_circuits(circuits, n_circuits) {
         Ok(v) => v,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     let b = unsafe { &*backend };
     match b.0.run_raw(circuit_inputs, shots) {
         Ok(t) => Box::into_raw(Box::new(TianyanTaskC(t))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -218,15 +242,24 @@ pub extern "C" fn tianyan_backend_run_with_mode(
     }
     let cal_mode = match parse_calibration_mode(mode) {
         Ok(m) => m,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     let circuit_inputs = match collect_circuits(circuits, n_circuits) {
         Ok(v) => v,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     let b = unsafe { &*backend };
     match b.0.run_with_mode(circuit_inputs, shots, cal_mode) {
         Ok(t) => Box::into_raw(Box::new(TianyanTaskC(t))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }

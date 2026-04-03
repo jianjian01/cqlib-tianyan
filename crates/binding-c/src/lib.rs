@@ -6,6 +6,8 @@
 // obtain a copy of this license in the LICENSE.txt file in the root directory
 // of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
 
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
+
 //! C bindings for the Tianyan quantum cloud platform client.
 //!
 //! Generated header: `include/cqlib_tianyan.h` (produced by `build.rs` via cbindgen).

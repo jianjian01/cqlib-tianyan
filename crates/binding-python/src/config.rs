@@ -149,9 +149,7 @@ impl PyTianyanConfig {
     fn __repr__(&self) -> String {
         format!(
             "TianyanConfig(domain='{}', save_credentials={}, auto_refresh={})",
-            self.inner.domain,
-            self.inner.save_credentials,
-            self.inner.auto_refresh,
+            self.inner.domain, self.inner.save_credentials, self.inner.auto_refresh,
         )
     }
 }

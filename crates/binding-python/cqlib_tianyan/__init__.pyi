@@ -33,7 +33,7 @@ Example:
 """
 
 from typing import List, Optional, final
-from cqlib.device import ExecutionResult
+from cqlib.device import ExecutionResult, Device
 
 @final
 class TianyanError(RuntimeError):
@@ -50,6 +50,7 @@ class TianyanError(RuntimeError):
         ... except TianyanError as e:
         ...     print(f"Login failed: {e}")
     """
+
     pass
 
 @final
@@ -264,7 +265,7 @@ class TianyanBackend:
         """
         ...
 
-    def device_config(self) -> "cqlib.device.Device":
+    def device_config(self) -> "Device":
         """
         Download the device calibration configuration.
 

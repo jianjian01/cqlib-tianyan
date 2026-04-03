@@ -23,7 +23,7 @@ use std::os::raw::c_char;
 
 use crate::backend::TianyanBackendC;
 use crate::config::{TianyanConfigC, config_from_c};
-use crate::error::{cstr_to_str, set_last_error, clear_last_error};
+use crate::error::{clear_last_error, cstr_to_str, set_last_error};
 use crate::task::TianyanTaskC;
 
 /// Opaque handle to the Tianyan platform client.
@@ -44,11 +44,17 @@ pub extern "C" fn tianyan_platform_login(api_key: *const c_char) -> *mut Tianyan
     clear_last_error();
     let key = match cstr_to_str(api_key, "api_key") {
         Ok(s) => s,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     match TianyanPlatform::login(key) {
         Ok(p) => Box::into_raw(Box::new(TianyanPlatformC(p))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -63,15 +69,24 @@ pub extern "C" fn tianyan_platform_login_with_config(
     clear_last_error();
     let key = match cstr_to_str(api_key, "api_key") {
         Ok(s) => s,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     let cfg = match config_from_c(config) {
         Ok(c) => c,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     match TianyanPlatform::login_with_config(key, cfg) {
         Ok(p) => Box::into_raw(Box::new(TianyanPlatformC(p))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -87,7 +102,10 @@ pub extern "C" fn tianyan_platform_from_credentials() -> *mut TianyanPlatformC {
     clear_last_error();
     match TianyanPlatform::from_credentials() {
         Ok(p) => Box::into_raw(Box::new(TianyanPlatformC(p))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -101,11 +119,17 @@ pub extern "C" fn tianyan_platform_from_credentials_with_config(
     clear_last_error();
     let cfg = match config_from_c(config) {
         Ok(c) => c,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     match TianyanPlatform::from_credentials_with_config(cfg) {
         Ok(p) => Box::into_raw(Box::new(TianyanPlatformC(p))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -156,7 +180,10 @@ pub extern "C" fn tianyan_platform_list_backends(
             std::mem::forget(ptrs);
             raw
         }
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -176,13 +203,19 @@ pub extern "C" fn tianyan_platform_get_backend(
     }
     let name_str = match cstr_to_str(name, "name") {
         Ok(s) => s,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     // SAFETY: `platform` was created by this crate.
     let p = unsafe { &*platform };
     match p.0.get_backend(name_str) {
         Ok(b) => Box::into_raw(Box::new(TianyanBackendC(b))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -212,17 +245,26 @@ pub extern "C" fn tianyan_platform_submit(
     }
     let device_str = match cstr_to_str(device_name, "device_name") {
         Ok(s) => s,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     let circuit_inputs = match collect_circuits(circuits, n_circuits) {
         Ok(v) => v,
-        Err(e) => { set_last_error(e); return std::ptr::null_mut(); }
+        Err(e) => {
+            set_last_error(e);
+            return std::ptr::null_mut();
+        }
     };
     // SAFETY: `platform` was created by this crate.
     let p = unsafe { &*platform };
     match p.0.submit(circuit_inputs, shots, device_str) {
         Ok(t) => Box::into_raw(Box::new(TianyanTaskC(t))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 

@@ -39,7 +39,7 @@ use std::ffi::CString;
 use std::os::raw::c_char;
 use std::time::Duration;
 
-use crate::error::{set_last_error, clear_last_error, str_to_cstring};
+use crate::error::{clear_last_error, set_last_error, str_to_cstring};
 
 /// Opaque wrapper around [`TaskHandle`] for C callers.
 pub struct TianyanTaskC(pub(crate) TaskHandle);
@@ -73,7 +73,9 @@ impl TianyanResultList {
 /// be freed by the caller.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_task_device_name(task: *const TianyanTaskC) -> *const c_char {
-    if task.is_null() { return std::ptr::null(); }
+    if task.is_null() {
+        return std::ptr::null();
+    }
     let t = unsafe { &*task };
     t.0.device_name.as_ptr() as *const c_char
 }
@@ -81,7 +83,9 @@ pub extern "C" fn tianyan_task_device_name(task: *const TianyanTaskC) -> *const 
 /// Return the number of measurement shots requested per circuit.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_task_shots(task: *const TianyanTaskC) -> usize {
-    if task.is_null() { return 0; }
+    if task.is_null() {
+        return 0;
+    }
     let t = unsafe { &*task };
     t.0.shots
 }
@@ -89,7 +93,9 @@ pub extern "C" fn tianyan_task_shots(task: *const TianyanTaskC) -> usize {
 /// Return the number of submitted circuits (= number of query IDs).
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_task_num_circuits(task: *const TianyanTaskC) -> usize {
-    if task.is_null() { return 0; }
+    if task.is_null() {
+        return 0;
+    }
     let t = unsafe { &*task };
     t.0.task_ids.len()
 }
@@ -115,9 +121,7 @@ pub extern "C" fn tianyan_task_ids(
         return std::ptr::null_mut();
     }
     let t = unsafe { &*task };
-    let mut ptrs: Vec<*mut c_char> = t.0.task_ids.iter()
-        .map(|id| str_to_cstring(id))
-        .collect();
+    let mut ptrs: Vec<*mut c_char> = t.0.task_ids.iter().map(|id| str_to_cstring(id)).collect();
     unsafe { *out_len = ptrs.len() };
     let raw = ptrs.as_mut_ptr();
     std::mem::forget(ptrs);
@@ -127,7 +131,9 @@ pub extern "C" fn tianyan_task_ids(
 /// Free the array returned by `tianyan_task_ids()`.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_task_ids_free(ids: *mut *mut c_char, len: usize) {
-    if ids.is_null() || len == 0 { return; }
+    if ids.is_null() || len == 0 {
+        return;
+    }
     unsafe {
         for i in 0..len {
             let s = *ids.add(i);
@@ -177,7 +183,10 @@ pub extern "C" fn tianyan_task_wait(
     let interval = Duration::from_secs_f64(poll_interval_secs);
     match t.0.wait(timeout, interval) {
         Ok(results) => Box::into_raw(Box::new(TianyanResultList::new(results))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -199,7 +208,10 @@ pub extern "C" fn tianyan_task_wait_raw(
     let interval = Duration::from_secs_f64(poll_interval_secs);
     match t.0.wait_raw(timeout, interval) {
         Ok(results) => Box::into_raw(Box::new(TianyanResultList::new(results))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -222,7 +234,10 @@ pub extern "C" fn tianyan_task_status_snapshot(
     let t = unsafe { &*task };
     match t.0.status() {
         Ok(results) => Box::into_raw(Box::new(TianyanResultList::new(results))),
-        Err(e) => { set_last_error(e); std::ptr::null_mut() }
+        Err(e) => {
+            set_last_error(e);
+            std::ptr::null_mut()
+        }
     }
 }
 
@@ -231,7 +246,9 @@ pub extern "C" fn tianyan_task_status_snapshot(
 /// Return the number of results in the list.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_result_list_len(list: *const TianyanResultList) -> usize {
-    if list.is_null() { return 0; }
+    if list.is_null() {
+        return 0;
+    }
     let l = unsafe { &*list };
     l.results.len()
 }
@@ -245,7 +262,9 @@ pub extern "C" fn tianyan_result_task_id(
     list: *const TianyanResultList,
     i: usize,
 ) -> *const c_char {
-    if list.is_null() { return std::ptr::null(); }
+    if list.is_null() {
+        return std::ptr::null();
+    }
     let l = unsafe { &*list };
     match l.task_ids.get(i) {
         Some(cs) => cs.as_ptr(),
@@ -256,17 +275,27 @@ pub extern "C" fn tianyan_result_task_id(
 /// Return the number of shots for the result at index `i`.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_result_shots(list: *const TianyanResultList, i: usize) -> usize {
-    if list.is_null() { return 0; }
+    if list.is_null() {
+        return 0;
+    }
     let l = unsafe { &*list };
-    l.results.get(i).map(|r: &ExecutionResult| r.shots()).unwrap_or(0)
+    l.results
+        .get(i)
+        .map(|r: &ExecutionResult| r.shots())
+        .unwrap_or(0)
 }
 
 /// Return the number of measured qubits for the result at index `i`.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_result_num_qubits(list: *const TianyanResultList, i: usize) -> usize {
-    if list.is_null() { return 0; }
+    if list.is_null() {
+        return 0;
+    }
     let l = unsafe { &*list };
-    l.results.get(i).map(|r: &ExecutionResult| r.num_qubits()).unwrap_or(0)
+    l.results
+        .get(i)
+        .map(|r: &ExecutionResult| r.num_qubits())
+        .unwrap_or(0)
 }
 
 /// Return the measurement counts for result `i` as a JSON object string.
@@ -280,7 +309,9 @@ pub extern "C" fn tianyan_result_counts_json(
     list: *const TianyanResultList,
     i: usize,
 ) -> *mut c_char {
-    if list.is_null() { return std::ptr::null_mut(); }
+    if list.is_null() {
+        return std::ptr::null_mut();
+    }
     let l = unsafe { &*list };
     let result: &ExecutionResult = match l.results.get(i) {
         Some(r) => r,

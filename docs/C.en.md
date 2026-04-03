@@ -348,7 +348,7 @@ for (size_t i = 0; i < len; i++) {
 tianyan_result_list_free(results);
 ```
 
-> **`tianyan_result_task_id`** returns a `const char *` tied to the `TianyanResultList`. Do not free it; do not use it after `tianyan_result_list_free`.  
+> **`tianyan_result_task_id`** returns a `const char *` tied to the `TianyanResultList`. Do not free it; do not use it after `tianyan_result_list_free`.
 > **`tianyan_result_counts_json`** returns a heap-allocated JSON string — always free it with `tianyan_string_free`.
 
 ### 5.3 Non-blocking status snapshot

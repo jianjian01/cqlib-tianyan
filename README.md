@@ -122,6 +122,48 @@ cqlib-tianyan/
 
 ---
 
+## 构建
+
+本项目使用 **Make** 编排多语言构建，也可直接使用 **Cargo** 构建 Rust 部分。
+
+### 使用 Make（推荐 macOS/Linux）
+
+```bash
+make all       # 构建所有（Rust + C + Python wheel）
+make rust      # 仅构建 Rust（自动排除 Python 绑定）
+make python    # 构建 Python wheel（需 maturin）
+make c         # 构建 C 绑定并运行测试
+make test      # 运行所有测试
+make clean     # 清理所有构建产物
+```
+
+### 使用 Cargo
+
+```bash
+# 构建 Rust crate（自动排除需 maturin 的 Python 绑定）
+cargo build --workspace --exclude binding-python
+
+# 运行测试
+cargo test --workspace --exclude binding-python
+```
+
+### Windows 平台
+
+Windows 未预装 Make，建议直接使用 Cargo + Maturin：
+
+```powershell
+# 构建 Rust 部分
+cargo build --workspace --exclude binding-python
+
+# 构建 Python 绑定（需先安装 maturin: pip install maturin）
+cd crates/binding-python
+maturin build --release
+```
+
+或使用 Git Bash / WSL 获得 Make 支持。
+
+---
+
 ## 许可证
 
 [Apache License 2.0](LICENSE.txt) · Copyright © China Telecom Quantum Group 2026

@@ -122,6 +122,48 @@ cqlib-tianyan/
 
 ---
 
+## Building
+
+This project uses **Make** to orchestrate multi-language builds. You can also use **Cargo** directly for the Rust parts.
+
+### Using Make (recommended for macOS/Linux)
+
+```bash
+make all       # Build everything (Rust + C + Python wheel)
+make rust      # Build Rust only (excludes Python bindings)
+make python    # Build Python wheel (requires maturin)
+make c         # Build C bindings and run tests
+make test      # Run all tests
+make clean     # Clean all build artifacts
+```
+
+### Using Cargo
+
+```bash
+# Build Rust crates (automatically excludes Python bindings which need maturin)
+cargo build --workspace --exclude binding-python
+
+# Run tests
+cargo test --workspace --exclude binding-python
+```
+
+### Windows
+
+Windows does not include Make by default. Use Cargo + Maturin directly:
+
+```powershell
+# Build Rust parts
+cargo build --workspace --exclude binding-python
+
+# Build Python bindings (install maturin first: pip install maturin)
+cd crates/binding-python
+maturin build --release
+```
+
+Or use Git Bash / WSL for Make support.
+
+---
+
 ## License
 
 [Apache License 2.0](LICENSE.txt) · Copyright © China Telecom Quantum Group 2026

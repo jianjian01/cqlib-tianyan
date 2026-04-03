@@ -22,44 +22,70 @@
  * All tests must print "PASS" for the suite to succeed.
  */
 
-#include "../include/cqlib_tianyan.h"
-
 #include <assert.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "../include/cqlib_tianyan.h"
 
 /* ── Minimal test harness ───────────────────────────────────────────────── */
 
-static int tests_run    = 0;
+static int tests_run = 0;
 static int tests_failed = 0;
 
-#define TEST(name) \
-    do { \
+#define TEST(name)                \
+    do {                          \
         printf("  %-60s ", name); \
-        tests_run++; \
+        tests_run++;              \
     } while (0)
 
-#define PASS() \
-    do { printf("PASS\n"); } while (0)
+#define PASS()            \
+    do {                  \
+        printf("PASS\n"); \
+    } while (0)
 
-#define FAIL(msg) \
-    do { \
+#define FAIL(msg)                   \
+    do {                            \
         printf("FAIL — %s\n", msg); \
-        tests_failed++; \
+        tests_failed++;             \
     } while (0)
 
 #define EXPECT_NULL(expr, msg) \
-    do { if ((expr) != NULL) { FAIL(msg); } else { PASS(); } } while (0)
+    do {                       \
+        if ((expr) != NULL) {  \
+            FAIL(msg);         \
+        } else {               \
+            PASS();            \
+        }                      \
+    } while (0)
 
 #define EXPECT_NOT_NULL(expr, msg) \
-    do { if ((expr) == NULL) { FAIL(msg); } else { PASS(); } } while (0)
+    do {                           \
+        if ((expr) == NULL) {      \
+            FAIL(msg);             \
+        } else {                   \
+            PASS();                \
+        }                          \
+    } while (0)
 
 #define EXPECT_ZERO(expr, msg) \
-    do { if ((expr) != 0) { FAIL(msg); } else { PASS(); } } while (0)
+    do {                       \
+        if ((expr) != 0) {     \
+            FAIL(msg);         \
+        } else {               \
+            PASS();            \
+        }                      \
+    } while (0)
 
 #define EXPECT_FALSE(expr, msg) \
-    do { if ((expr) != 0) { FAIL(msg); } else { PASS(); } } while (0)
+    do {                        \
+        if ((expr) != 0) {      \
+            FAIL(msg);          \
+        } else {                \
+            PASS();             \
+        }                       \
+    } while (0)
 
 /* ── Test sections ──────────────────────────────────────────────────────── */
 
@@ -75,9 +101,11 @@ static void test_null_safety(void) {
     EXPECT_NULL(tianyan_platform_login(NULL), "should be NULL");
 
     TEST("tianyan_platform_from_credentials() with no cred file (error path)");
-    TianyanPlatformC *p = tianyan_platform_from_credentials();
+    TianyanPlatformC* p = tianyan_platform_from_credentials();
     /* May succeed if creds exist on disk; we just check it doesn't crash. */
-    if (p) { tianyan_platform_free(p); }
+    if (p) {
+        tianyan_platform_free(p);
+    }
     PASS();
 
     TEST("tianyan_platform_list_backends(NULL, ...) returns NULL");
@@ -108,13 +136,21 @@ static void test_null_safety(void) {
     TEST("tianyan_backend_status(NULL) returns -1");
     {
         int s = tianyan_backend_status(NULL);
-        if (s != -1) { FAIL("expected -1"); } else { PASS(); }
+        if (s != -1) {
+            FAIL("expected -1");
+        } else {
+            PASS();
+        }
     }
 
     TEST("tianyan_backend_toll(NULL) returns -1");
     {
         int t = tianyan_backend_toll(NULL);
-        if (t != -1) { FAIL("expected -1"); } else { PASS(); }
+        if (t != -1) {
+            FAIL("expected -1");
+        } else {
+            PASS();
+        }
     }
 
     TEST("tianyan_backend_is_available(NULL) returns false");
@@ -186,10 +222,10 @@ static void test_error_handling(void) {
 
     TEST("login with obviously invalid key sets last_error");
     tianyan_error_clear();
-    TianyanPlatformC *p = tianyan_platform_login("obviously_invalid_key_xyz_123");
+    TianyanPlatformC* p = tianyan_platform_login("obviously_invalid_key_xyz_123");
     /* We don't know if we have network; just check the contract: if NULL, error is set */
     if (p == NULL) {
-        char *err = tianyan_last_error();
+        char* err = tianyan_last_error();
         if (err && strlen(err) > 0) {
             tianyan_string_free(err);
             PASS();
@@ -205,11 +241,17 @@ static void test_error_handling(void) {
     TEST("login(NULL) sets last_error");
     tianyan_error_clear();
     p = tianyan_platform_login(NULL);
-    if (p != NULL) { tianyan_platform_free(p); FAIL("expected NULL"); }
-    else {
-        char *err = tianyan_last_error();
-        if (err && strlen(err) > 0) { tianyan_string_free(err); PASS(); }
-        else { FAIL("expected non-empty last_error"); }
+    if (p != NULL) {
+        tianyan_platform_free(p);
+        FAIL("expected NULL");
+    } else {
+        char* err = tianyan_last_error();
+        if (err && strlen(err) > 0) {
+            tianyan_string_free(err);
+            PASS();
+        } else {
+            FAIL("expected non-empty last_error");
+        }
     }
 
     TEST("tianyan_error_clear() clears the error");

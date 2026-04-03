@@ -42,11 +42,11 @@ pub(crate) fn clear_last_error() {
 /// `tianyan_string_free()`.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_last_error() -> *mut c_char {
-    LAST_ERROR.with(|slot| {
-        match slot.borrow().as_deref() {
-            Some(msg) => CString::new(msg).map(|s| s.into_raw()).unwrap_or(std::ptr::null_mut()),
-            None => std::ptr::null_mut(),
-        }
+    LAST_ERROR.with(|slot| match slot.borrow().as_deref() {
+        Some(msg) => CString::new(msg)
+            .map(|s| s.into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+        None => std::ptr::null_mut(),
     })
 }
 
@@ -80,5 +80,7 @@ pub(crate) fn cstr_to_str<'a>(ptr: *const c_char, name: &str) -> Result<&'a str,
 
 /// Helper: convert a `&str` to a heap-allocated `*mut c_char` (caller must free).
 pub(crate) fn str_to_cstring(s: &str) -> *mut c_char {
-    CString::new(s).map(|cs| cs.into_raw()).unwrap_or(std::ptr::null_mut())
+    CString::new(s)
+        .map(|cs| cs.into_raw())
+        .unwrap_or(std::ptr::null_mut())
 }

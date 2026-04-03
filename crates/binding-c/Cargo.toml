@@ -5,4 +5,13 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
 [dependencies]
+cqlib-tianyan = { path = "../cqlib-tianyan" }
+cqlib-core.workspace = true
+serde_json.workspace = true
+
+[build-dependencies]
+cbindgen = "0.29"

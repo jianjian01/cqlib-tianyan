@@ -37,7 +37,6 @@ use pyo3::prelude::*;
 use std::collections::HashMap;
 use std::time::Duration;
 
-
 /// Convert a [`cqlib_core::device::result::ExecutionResult`] into a Python
 /// `cqlib.device.ExecutionResult` object by calling back into the installed
 /// `cqlib` package.
@@ -83,7 +82,6 @@ pub(crate) fn er_to_py(py: Python<'_>, er: &ExecutionResult) -> PyResult<Py<PyAn
 fn results_to_py(py: Python<'_>, results: Vec<ExecutionResult>) -> PyResult<Vec<Py<PyAny>>> {
     results.iter().map(|er| er_to_py(py, er)).collect()
 }
-
 
 /// A batch of circuits submitted to the Tianyan quantum cloud platform.
 ///
@@ -163,7 +161,9 @@ impl PyTaskHandle {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let timeout = Duration::from_secs_f64(timeout_secs);
         let interval = Duration::from_secs_f64(poll_interval_secs);
-        let results = py.detach(|| self.inner.wait(timeout, interval)).map_py_err(py)?;
+        let results = py
+            .detach(|| self.inner.wait(timeout, interval))
+            .map_py_err(py)?;
         results_to_py(py, results)
     }
 
@@ -182,7 +182,9 @@ impl PyTaskHandle {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let timeout = Duration::from_secs_f64(timeout_secs);
         let interval = Duration::from_secs_f64(poll_interval_secs);
-        let results = py.detach(|| self.inner.wait_raw(timeout, interval)).map_py_err(py)?;
+        let results = py
+            .detach(|| self.inner.wait_raw(timeout, interval))
+            .map_py_err(py)?;
         results_to_py(py, results)
     }
 

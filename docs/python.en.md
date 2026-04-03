@@ -249,7 +249,7 @@ The implementation:
 1. Calibration data is available on the backend.
 2. The circuit measures **≤ 14 qubits**.
 
-> **Why the 14-qubit limit?**  
+> **Why the 14-qubit limit?**
 > The inverse confusion matrix requires O(4ⁿ) memory, where n is the number of measured qubits. At n = 14 that is ~2 GiB; at n = 15 it is ~8 GiB. Above this threshold `Auto` silently falls back to raw counts to prevent out-of-memory crashes. Use `CalibrationMode.Enabled` if you need to force calibration on larger circuits and have sufficient RAM.
 
 ```python

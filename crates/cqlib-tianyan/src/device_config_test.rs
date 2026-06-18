@@ -11,6 +11,18 @@
 // that they have been altered from the originals.
 
 use super::*;
+use cqlib_core::circuit::{Instruction, StandardGate};
+
+fn standard_native_gates(device: &cqlib_core::device::Device) -> Vec<StandardGate> {
+    device
+        .native_gates()
+        .iter()
+        .filter_map(|instruction| match instruction {
+            Instruction::Standard(gate) => Some(*gate),
+            _ => None,
+        })
+        .collect()
+}
 
 fn sample_config_json() -> serde_json::Value {
     serde_json::json!({
@@ -107,15 +119,15 @@ fn parse_device_config_basic() {
     assert_eq!(device.topology().num_qubits(), 3);
 
     // Disabled qubits
-    let invalid: HashSet<Qubit> = device.invalid_qubits().collect();
-    assert!(invalid.contains(&Qubit::new(2)));
-    assert!(invalid.contains(&Qubit::new(10)));
+    let invalid: HashSet<PhysicalQubit> = device.invalid_qubits().collect();
+    assert!(invalid.contains(&PhysicalQubit::new(2)));
+    assert!(!invalid.contains(&PhysicalQubit::new(10)));
 
     assert_eq!(device.default_single_qubit_error(), Some(0.0022));
     assert_eq!(device.default_two_qubit_error(), Some(0.032));
 
     // Per-qubit properties
-    let q0_props = device.qubit_properties(Qubit::new(0)).unwrap();
+    let q0_props = device.qubit_properties(PhysicalQubit::new(0)).unwrap();
     assert!((q0_props.readout_error() - 0.1148).abs() < 0.001);
     assert!((q0_props.frequency().unwrap() - 4.5657).abs() < 0.001);
     assert!((q0_props.t1().unwrap() - 26.5).abs() < 0.1);
@@ -127,9 +139,35 @@ fn parse_device_config_basic() {
 }
 
 #[test]
+fn native_gates_are_set_from_known_tianyan_machine() {
+    let json = sample_config_json();
+    let device = parse_device_config("tianyan176", &json).unwrap();
+    assert_eq!(
+        standard_native_gates(&device),
+        vec![
+            StandardGate::RZ,
+            StandardGate::X2P,
+            StandardGate::X2M,
+            StandardGate::Y2P,
+            StandardGate::Y2M,
+            StandardGate::XY2P,
+            StandardGate::XY2M,
+            StandardGate::CZ,
+        ]
+    );
+}
+
+#[test]
+fn tianyan504_native_gates_include_fsim() {
+    let json = sample_config_json();
+    let device = parse_device_config("tianyan504", &json).unwrap();
+    assert!(standard_native_gates(&device).contains(&StandardGate::FSIM));
+}
+
+#[test]
 fn parse_qubit_names() {
-    assert_eq!(parse_qubit("Q0"), Some(Qubit::new(0)));
-    assert_eq!(parse_qubit("Q23"), Some(Qubit::new(23)));
+    assert_eq!(parse_qubit("Q0"), Some(PhysicalQubit::new(0)));
+    assert_eq!(parse_qubit("Q23"), Some(PhysicalQubit::new(23)));
     assert_eq!(parse_qubit("G0"), None);
     assert_eq!(parse_qubit(""), None);
     assert_eq!(parse_qubit("Qx"), None);
@@ -161,14 +199,14 @@ fn topology_connectivity() {
     let topo = device.topology();
 
     // G0 (Q1–Q0) is enabled and both endpoints are available.
-    assert!(topo.is_connected(Qubit::new(1), Qubit::new(0)));
+    assert!(topo.supports_directed_coupling(PhysicalQubit::new(1), PhysicalQubit::new(0)));
 
     // G1 (Q2–Q1) and G2 (Q3–Q2) both involve Q2 which is disabled,
     // so those edges are excluded from the topology.
     // Q2 itself is not a topology node, so Q3–Q2 is not connected.
-    assert!(!topo.is_connected(Qubit::new(3), Qubit::new(2)));
+    assert!(!topo.supports_coupling_either_direction(PhysicalQubit::new(3), PhysicalQubit::new(2)));
     // Q3 is an isolated node (all its edges involved the disabled Q2).
-    assert!(!topo.is_connected(Qubit::new(3), Qubit::new(1)));
+    assert!(!topo.supports_coupling_either_direction(PhysicalQubit::new(3), PhysicalQubit::new(1)));
 }
 
 #[test]
@@ -176,7 +214,7 @@ fn edge_properties_cz_gate() {
     let json = sample_config_json();
     let device = parse_device_config("test", &json).unwrap();
 
-    let edge = device.edge_properties(Qubit::new(1), Qubit::new(0));
+    let edge = device.edge_properties(PhysicalQubit::new(1), PhysicalQubit::new(0));
     assert!(edge.is_some());
     let edge = edge.unwrap();
     let instructions = edge.native_instructions();
@@ -277,7 +315,7 @@ fn all_qubit_properties_present() {
     let device = parse_device_config("test", &json).unwrap();
 
     // Q3 should also have properties
-    let q3_props = device.qubit_properties(Qubit::new(3)).unwrap();
+    let q3_props = device.qubit_properties(PhysicalQubit::new(3)).unwrap();
     assert!((q3_props.frequency().unwrap() - 4.6992).abs() < 0.001);
     assert!((q3_props.t1().unwrap() - 57.2).abs() < 0.1);
     assert!((q3_props.t2().unwrap() - 21.7).abs() < 0.1);

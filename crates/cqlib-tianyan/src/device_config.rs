@@ -22,10 +22,9 @@
 use crate::client::TianyanClient;
 use crate::config::DOWNLOAD_CONFIG_PATH;
 use crate::error::TianyanError;
-use cqlib_core::circuit::Qubit;
 use cqlib_core::circuit::gate::instruction::Instruction;
 use cqlib_core::circuit::gate::standard_gate::StandardGate;
-use cqlib_core::device::{Device, EdgeProp, InstructionProp, QubitProp, Topology};
+use cqlib_core::device::{Device, EdgeProp, InstructionProp, PhysicalQubit, QubitProp, Topology};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
@@ -127,11 +126,11 @@ struct ParamArray {
     qubit_used: Vec<String>,
 }
 
-/// Parse a qubit name like `"Q3"` into `Qubit::new(3)`.
-fn parse_qubit(name: &str) -> Option<Qubit> {
+/// Parse a qubit name like `"Q3"` into `PhysicalQubit::new(3)`.
+fn parse_qubit(name: &str) -> Option<PhysicalQubit> {
     name.strip_prefix('Q')
         .and_then(|s| s.parse::<u32>().ok())
-        .map(Qubit::new)
+        .map(PhysicalQubit::new)
 }
 
 /// Build a lookup table from a [`ParamArray`]: qubit name → value.
@@ -225,7 +224,7 @@ pub fn parse_device_config(
     // These must be resolved before constructing the topology so that
     // Device::new's invariant (topology qubits ⊆ available qubits) is satisfied.
 
-    let disabled_qubit_set: HashSet<Qubit> = raw
+    let disabled_qubit_set: HashSet<PhysicalQubit> = raw
         .disabled_qubits
         .as_deref()
         .map(|s| {
@@ -244,20 +243,30 @@ pub fn parse_device_config(
     // Disabled qubits are excluded from the topology entirely; they are recorded
     // separately in Device::invalid_qubits for informational purposes.
 
-    let available_qubits: Vec<Qubit> = overview
+    let all_qubit_set: HashSet<PhysicalQubit> = overview
+        .qubits
+        .iter()
+        .filter_map(|name| parse_qubit(name))
+        .collect();
+    let invalid_qubit_set: HashSet<PhysicalQubit> = disabled_qubit_set
+        .iter()
+        .filter(|qubit| all_qubit_set.contains(qubit))
+        .copied()
+        .collect();
+
+    let available_qubits: Vec<PhysicalQubit> = overview
         .qubits
         .iter()
         .filter_map(|name| parse_qubit(name))
         .filter(|q| !disabled_qubit_set.contains(q))
         .collect();
-    let available_qubit_set: HashSet<Qubit> = available_qubits.iter().copied().collect();
 
     // A coupler is excluded if:
     //   (a) its name appears in `disabledCouplers`, or
     //   (b) either of its endpoint qubits is disabled (the disabled-coupler list
     //       from the API should already cover these, but we guard defensively).
 
-    let mut coupling_entries: Vec<(Qubit, Qubit, String)> = Vec::new();
+    let mut coupling_entries: Vec<(PhysicalQubit, PhysicalQubit, String)> = Vec::new();
     for (coupler_name, qubit_pair) in &overview.coupler_map {
         if disabled_coupler_set.contains(coupler_name.as_str()) {
             continue;
@@ -280,12 +289,15 @@ pub fn parse_device_config(
     let topology = Topology::new(available_qubits, coupling_entries)
         .map_err(|e| TianyanError::InvalidInput(format!("failed to build topology: {}", e)))?;
 
-    let mut device = Device::new(machine, available_qubit_set, topology)
-        .map_err(|e| TianyanError::InvalidInput(format!("failed to build device: {}", e)))?;
+    let mut device = Device::new(machine, all_qubit_set, topology)
+        .map_err(|e| TianyanError::InvalidInput(format!("failed to build device: {}", e)))?
+        .with_native_gates(native_gates_for_machine(machine));
 
     // Record disabled qubits separately so callers can inspect them.
-    if !disabled_qubit_set.is_empty() {
-        device = device.with_invalid_qubits(disabled_qubit_set);
+    if !invalid_qubit_set.is_empty() {
+        device = device.with_invalid_qubits(invalid_qubit_set).map_err(|e| {
+            TianyanError::InvalidInput(format!("failed to set invalid qubits: {}", e))
+        })?;
     }
 
     if let Some(ref ct) = raw.calibration_time {
@@ -441,6 +453,32 @@ pub fn parse_device_config(
     }
 
     Ok(device)
+}
+
+fn native_gates_for_machine(machine: &str) -> Vec<Instruction> {
+    let mut gates = vec![
+        Instruction::Standard(StandardGate::RZ),
+        Instruction::Standard(StandardGate::X2P),
+        Instruction::Standard(StandardGate::X2M),
+        Instruction::Standard(StandardGate::Y2P),
+        Instruction::Standard(StandardGate::Y2M),
+    ];
+
+    match machine {
+        "tianyan-287" | "tianyan176" | "tianyan176-2" | "tianyan504" => {
+            gates.push(Instruction::Standard(StandardGate::XY2P));
+            gates.push(Instruction::Standard(StandardGate::XY2M));
+        }
+        _ => {}
+    }
+
+    gates.push(Instruction::Standard(StandardGate::CZ));
+
+    if machine == "tianyan504" {
+        gates.push(Instruction::Standard(StandardGate::FSIM));
+    }
+
+    gates
 }
 
 /// Readout calibration data extracted from the device config for use in

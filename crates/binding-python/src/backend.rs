@@ -33,6 +33,7 @@
 
 use crate::error::IntoPyResult;
 use crate::task::PyTaskHandle;
+use cqlib_core::circuit::Instruction;
 use cqlib_core::device::Device;
 use cqlib_tianyan::device::{DeviceStatus, DeviceToll, TianyanBackend};
 use cqlib_tianyan::task::CalibrationMode;
@@ -397,11 +398,14 @@ impl PyTianyanBackend {
 /// `cqlib` ecosystem.
 pub(crate) fn device_to_py(py: Python<'_>, device: &Device) -> PyResult<Py<PyAny>> {
     let cqlib_device = py.import("cqlib.device")?;
+    let cqlib_circuit = py.import("cqlib.circuit")?;
     let device_class = cqlib_device.getattr("Device")?;
     let topology_class = cqlib_device.getattr("Topology")?;
+    let instruction_class = cqlib_circuit.getattr("Instruction")?;
+    let standard_gate_class = cqlib_circuit.getattr("StandardGate")?;
 
     // Build qubit index list
-    let qubit_indices: Vec<u32> = device.qubits().map(|q| q.index() as u32).collect();
+    let qubit_indices: Vec<u32> = device.qubits().map(|q| q.id()).collect();
 
     // Build topology edge list: [(control_idx, target_idx, gate_name), ...]
     // Need to map from graph NodeIndex to actual Qubit index
@@ -413,7 +417,7 @@ pub(crate) fn device_to_py(py: Python<'_>, device: &Device) -> PyResult<Py<PyAny
         .node_indices()
         .map(|node_idx| {
             let qubit = graph[node_idx];
-            (node_idx, qubit.index() as u32)
+            (node_idx, qubit.id())
         })
         .collect();
 
@@ -438,6 +442,21 @@ pub(crate) fn device_to_py(py: Python<'_>, device: &Device) -> PyResult<Py<PyAny
 
     let py_topology = topology_class.call1((qubit_indices.clone(), edges))?;
     let py_device = device_class.call1((device.name(), qubit_indices, py_topology))?;
+
+    let native_gates = device
+        .native_gates()
+        .iter()
+        .map(|instruction| match instruction {
+            Instruction::Standard(gate) => {
+                let py_gate = standard_gate_class.getattr(gate.to_string())?;
+                instruction_class.call_method1("from_standard_gate", (py_gate,))
+            }
+            other => Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "cannot convert non-standard native gate to Python: {other}"
+            ))),
+        })
+        .collect::<PyResult<Vec<_>>>()?;
+    py_device.setattr("native_gates", native_gates)?;
 
     Ok(py_device.into())
 }

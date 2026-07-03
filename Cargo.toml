@@ -12,7 +12,7 @@ edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
 license-file = "LICENSE.txt"
-authors = ["Tianyan Quantum Group <tianyan@chinatelecom.cn>"]
+authors = ["Cqlib Development Team <tianyan@chinatelecom.cn >"]
 description = "client for the Tianyan quantum cloud platform — authentication, device management, circuit submission, and readout error mitigation."
 repository = "https://github.com/cq-lib/cqlib-tianyan"
 homepage = "https://qc.zdxlz.com/cqlib"
@@ -26,7 +26,7 @@ strip = true
 
 [workspace.dependencies]
 dirs = "5"
-cqlib-core = { path = '../cqlib2/crates/cqlib-core' }
+cqlib-core = { git = "https://github.com/cq-lib/cqlib.git", branch = "develop" }
 reqwest = { version = "0.12", features = ["json", "blocking"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

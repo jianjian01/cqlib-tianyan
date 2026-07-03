@@ -73,7 +73,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for CalibrationModeInput {
 /// - `"under_maintenance"` — Temporarily unavailable for maintenance.
 /// - `"offline"` — Device is offline.
 /// - `"unknown"` — Unrecognised status code from the API.
-#[pyclass(name = "DeviceStatus", module = "cqlib_tianyan")]
+#[pyclass(name = "DeviceStatus", module = "cqlib_tianyan", from_py_object)]
 #[derive(Clone, Debug)]
 pub struct PyDeviceStatus {
     inner: DeviceStatus,
@@ -124,7 +124,7 @@ impl PyDeviceStatus {
 /// - `"free"` — No charge for submitting jobs.
 /// - `"paid"` — Job submission consumes credits.
 /// - `"unknown"` — Unrecognised pricing code from the API.
-#[pyclass(name = "DeviceToll", module = "cqlib_tianyan")]
+#[pyclass(name = "DeviceToll", module = "cqlib_tianyan", from_py_object)]
 #[derive(Clone, Debug)]
 pub struct PyDeviceToll {
     inner: DeviceToll,
@@ -176,7 +176,7 @@ impl PyDeviceToll {
 /// | `"auto"` | Apply mitigation if calibration data is available; fall back to raw (default). |
 /// | `"enabled"` | Always apply mitigation; error if no calibration data exists. |
 /// | `"disabled"` | Never apply mitigation; always return raw counts. |
-#[pyclass(name = "CalibrationMode", module = "cqlib_tianyan")]
+#[pyclass(name = "CalibrationMode", module = "cqlib_tianyan", from_py_object)]
 #[derive(Clone, Debug)]
 pub struct PyCalibrationMode {
     pub(crate) inner: CalibrationMode,

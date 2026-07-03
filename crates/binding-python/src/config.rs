@@ -59,7 +59,7 @@ use pyo3::prelude::*;
 ///     credentials_path="/tmp/tianyan_creds.json",
 /// )
 /// ```
-#[pyclass(name = "TianyanConfig", module = "cqlib_tianyan")]
+#[pyclass(name = "TianyanConfig", module = "cqlib_tianyan", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PyTianyanConfig {
     pub(crate) inner: TianyanConfig,

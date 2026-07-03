@@ -145,8 +145,10 @@ fn param_map(arr: &ParamArray) -> HashMap<String, f64> {
 /// Parse a calibration time string like `"2025-08-07 15:16:22"` into an
 /// [`OffsetDateTime`](time::OffsetDateTime).
 fn parse_calibration_time(s: &str) -> Option<time::OffsetDateTime> {
-    let format =
-        time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").ok()?;
+    let format = time::format_description::parse_borrowed::<3>(
+        "[year]-[month]-[day] [hour]:[minute]:[second]",
+    )
+    .ok()?;
     time::PrimitiveDateTime::parse(s, &format)
         .ok()
         .map(|dt| dt.assume_utc())

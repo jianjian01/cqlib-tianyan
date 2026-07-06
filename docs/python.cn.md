@@ -102,7 +102,7 @@ platform = TianyanPlatform.from_credentials(
 backends = platform.list_backends()
 
 for b in backends:
-    print(f"{b.name:30} status={b.status}  qubits={b.num_qubits or 0}")
+    print(f"{b.name:30} status={b.status}")
 ```
 
 ### 3.2 获取指定后端
@@ -120,8 +120,9 @@ print(f"已选择: {backend.name} ({backend.status})")
 device = backend.device_config()
 topo = device.topology
 
-print(f"比特数   : {topo.num_qubits}")
-print(f"耦合数   : {topo.num_couplings}")
+print(f"物理比特数     : {backend.num_qubits()}")
+print(f"可用拓扑比特数 : {topo.num_qubits}")
+print(f"耦合数         : {topo.num_couplings}")
 
 if device.calibration_time:
     print(f"校准时间 : {device.calibration_time}")
@@ -387,7 +388,7 @@ backend = platform.get_backend("tianyan-287")
 # 3. 查看设备信息
 print(f"设备: {backend.name}")
 print(f"状态: {backend.status}")
-print(f"量子比特数: {backend.num_qubits}")
+print(f"物理比特数: {backend.num_qubits()}")
 
 # 4. 提交 Bell 态线路（tianyan-287 上 Q1 ↔ Q8 耦合）
 circuit = "H Q1\nH Q8\nCZ Q1 Q8\nH Q8\nM Q1\nM Q8"

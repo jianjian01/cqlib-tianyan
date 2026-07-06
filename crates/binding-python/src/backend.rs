@@ -22,9 +22,10 @@
 //! backends = platform.list_backends()
 //!
 //! for b in backends:
-//!     print(f"{b.name} ({b.status}) — {b.num_qubits} qubits")
+//!     print(f"{b.name} ({b.status})")
 //!
 //! backend = platform.get_backend("tianyan-287")
+//! print(f"{backend.num_qubits()} qubits")
 //! if backend.is_available():
 //!     task = backend.run(["H Q1\nM Q1"], shots=1000)
 //!     # or run_raw / run_with_mode
@@ -309,6 +310,14 @@ impl PyTianyanBackend {
     /// Returns `True` when the backend is in `"running"` status.
     fn is_available(&self) -> bool {
         self.inner.is_available()
+    }
+
+    /// Return the total number of physical qubits in the backend configuration.
+    ///
+    /// Downloads the backend configuration on first use and reuses the cached
+    /// configuration afterwards. Disabled qubits are included in this count.
+    fn num_qubits(&self, py: Python<'_>) -> PyResult<usize> {
+        self.inner.num_qubits().map_py_err(py)
     }
 
     /// Submit circuits and return a task handle.

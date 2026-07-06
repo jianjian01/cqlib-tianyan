@@ -115,7 +115,9 @@ fn parse_device_config_basic() {
     let device = parse_device_config("tianyan24", &json).unwrap();
 
     assert_eq!(device.name(), "tianyan24");
-    // Q2 is disabled → available qubits are Q0, Q1, Q3 (3 total).
+    // Physical qubit count includes disabled qubits from overview.qubits.
+    assert_eq!(device.qubits().count(), 4);
+    // Q2 is disabled -> available topology qubits are Q0, Q1, Q3 (3 total).
     assert_eq!(device.topology().num_qubits(), 3);
 
     // Disabled qubits

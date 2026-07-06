@@ -115,6 +115,43 @@ pub extern "C" fn tianyan_backend_is_available(backend: *const TianyanBackendC) 
     b.0.is_available()
 }
 
+/// Write the total number of physical qubits in the backend configuration to `out_num_qubits`.
+///
+/// This may download the backend configuration on first use and reuses the cached
+/// configuration afterwards. Disabled qubits are included in this count.
+///
+/// Returns `true` on success and `false` on error. On error, call
+/// `tianyan_last_error()` for details.
+#[unsafe(no_mangle)]
+pub extern "C" fn tianyan_backend_num_qubits(
+    backend: *const TianyanBackendC,
+    out_num_qubits: *mut usize,
+) -> bool {
+    clear_last_error();
+    if backend.is_null() {
+        set_last_error("backend must not be NULL");
+        return false;
+    }
+    if out_num_qubits.is_null() {
+        set_last_error("out_num_qubits must not be NULL");
+        return false;
+    }
+
+    let b = unsafe { &*backend };
+    match b.0.num_qubits() {
+        Ok(num_qubits) => {
+            unsafe {
+                *out_num_qubits = num_qubits;
+            }
+            true
+        }
+        Err(e) => {
+            set_last_error(e);
+            false
+        }
+    }
+}
+
 /// Free a `TianyanBackend` returned by any API function.
 ///
 /// Passing `NULL` is safe and does nothing.

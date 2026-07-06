@@ -259,6 +259,16 @@ impl TianyanBackend {
         self.with_config(|c| f(&c.device))
     }
 
+    /// Return the total number of physical qubits in the backend configuration.
+    ///
+    /// This method downloads the backend configuration on first use and reuses the
+    /// cached configuration afterwards. Disabled qubits are included in this count;
+    /// use [`with_device`](Self::with_device) and inspect `device.topology()` when
+    /// you need the currently available topology qubit count.
+    pub fn num_qubits(&self) -> Result<usize, TianyanError> {
+        self.with_device(|device| device.qubits().count())
+    }
+
     /// Download (or return cached) readout calibration data suitable for
     /// measurement error mitigation.
     ///

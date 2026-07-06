@@ -36,7 +36,7 @@
 //!
 //! # Discover backends
 //! for b in platform.list_backends():
-//!     print(b.name, b.status, b.num_qubits)
+//!     print(b.name, b.status)
 //!
 //! # Submit circuits
 //! task = platform.submit(["H Q1\nM Q1"], shots=1000, device_name="tianyan-287")

@@ -408,10 +408,9 @@ class TestTianyanBackend:
         assert isinstance(backend.status, DeviceStatus)
         assert isinstance(backend.toll, DeviceToll)
 
-        # num_qubits may be None
-        if backend.num_qubits is not None:
-            assert isinstance(backend.num_qubits, int)
-            assert backend.num_qubits > 0
+        num_qubits = backend.num_qubits()
+        assert isinstance(num_qubits, int)
+        assert num_qubits > 0
 
     def test_is_available(self, available_backend: TianyanBackend) -> None:
         """Available backend reports is_available=True."""

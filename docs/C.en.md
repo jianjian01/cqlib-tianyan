@@ -233,9 +233,20 @@ printf("Selected : %s\n", tianyan_backend_name(backend));
 printf("Status   : %d\n", tianyan_backend_status(backend));
 printf("Toll     : %d\n", tianyan_backend_toll(backend));
 printf("Available: %s\n", tianyan_backend_is_available(backend) ? "yes" : "no");
+
+size_t num_qubits = 0;
+if (tianyan_backend_num_qubits(backend, &num_qubits)) {
+    printf("Physical qubits: %zu\n", num_qubits);
+} else {
+    char *err = tianyan_last_error();
+    fprintf(stderr, "Could not load qubit count: %s\n", err ? err : "(unknown)");
+    tianyan_string_free(err);
+}
 ```
 
 > **Lifetimes**: `tianyan_backend_name()` and `tianyan_backend_display_name()` return `const char *` pointers whose lifetime is tied to the `TianyanBackendC` object. Do **not** free these strings; do **not** use them after the backend is freed.
+
+`tianyan_backend_num_qubits()` may download and parse the backend configuration on first use. It reports the physical qubit count, including disabled qubits.
 
 ---
 

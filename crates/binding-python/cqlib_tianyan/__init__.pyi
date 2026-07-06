@@ -201,15 +201,21 @@ class TianyanBackend:
     toll: DeviceToll
     """Pricing model."""
 
-    num_qubits: Optional[int]
-    """Total number of physical qubits, if reported by the platform."""
-
     def is_available(self) -> bool:
         """
         Returns True when the backend is in "running" status.
 
         Returns:
             bool: Whether the backend is available for submissions.
+        """
+        ...
+
+    def num_qubits(self) -> int:
+        """
+        Return the total number of physical qubits in the backend configuration.
+
+        This may download the backend configuration on first use. Disabled
+        qubits are included in this count.
         """
         ...
 
@@ -401,7 +407,7 @@ class TianyanPlatform:
         >>>
         >>> # Discover backends
         >>> for b in platform.list_backends():
-        ...     print(b.name, b.status, b.num_qubits)
+        ...     print(b.name, b.status)
         >>>
         >>> # Submit circuits
         >>> task = platform.submit(["H Q1\\nM Q1"], shots=1000, device_name="tianyan-287")

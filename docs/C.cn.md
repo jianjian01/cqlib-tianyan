@@ -250,9 +250,20 @@ if (!backend) {
 
 printf("已选择: %s\n", tianyan_backend_name(backend));
 
+size_t num_qubits = 0;
+if (tianyan_backend_num_qubits(backend, &num_qubits)) {
+    printf("物理比特数: %zu\n", num_qubits);
+} else {
+    char *err = tianyan_last_error();
+    fprintf(stderr, "读取比特数失败: %s\n", err ? err : "(未知错误)");
+    tianyan_string_free(err);
+}
+
 /* 使用完毕后释放 */
 tianyan_backend_free(backend);
 ```
+
+`tianyan_backend_num_qubits()` 首次调用可能会下载并解析设备配置。它返回物理总比特数，包含禁用比特；可用拓扑比特数请通过设备配置拓扑理解。
 
 ### 3.3 检查后端是否可用
 

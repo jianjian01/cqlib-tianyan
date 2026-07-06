@@ -102,7 +102,7 @@ platform = TianyanPlatform.from_credentials(
 backends = platform.list_backends()
 
 for b in backends:
-    print(f"{b.name:30} status={b.status}  qubits={b.num_qubits or 0}")
+    print(f"{b.name:30} status={b.status}")
 ```
 
 ### 3.2 Select a specific backend
@@ -120,7 +120,8 @@ The device calibration configuration includes the qubit/coupler topology and mea
 device = backend.device_config()
 topo = device.topology
 
-print(f"Qubits   : {topo.num_qubits}")
+print(f"Physical qubits: {backend.num_qubits()}")
+print(f"Available topology qubits: {topo.num_qubits}")
 print(f"Couplings: {topo.num_couplings}")
 
 if device.calibration_time:
@@ -387,7 +388,7 @@ backend = platform.get_backend("tianyan-287")
 # 3. Inspect device info
 print(f"Device: {backend.name}")
 print(f"Status: {backend.status}")
-print(f"Qubits: {backend.num_qubits}")
+print(f"Physical qubits: {backend.num_qubits()}")
 
 # 4. Submit Bell-state circuit (Q1 ↔ Q8 are coupled on tianyan-287)
 circuit = "H Q1\nH Q8\nCZ Q1 Q8\nH Q8\nM Q1\nM Q8"

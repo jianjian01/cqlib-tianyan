@@ -92,12 +92,7 @@ let platform = TianyanPlatform::from_credentials_with_config(cfg)?;
 let backends = platform.list_backends()?;
 
 for b in &backends {
-    println!(
-        "{:30} status={:?}  qubits={:3}",
-        b.name,
-        b.status,
-        b.num_qubits.unwrap_or(0),
-    );
+    println!("{:30} status={:?}", b.name, b.status);
 }
 ```
 
@@ -113,15 +108,17 @@ println!("已选择: {} ({:?})", backend.name, backend.status);
 校准配置中包含量子比特/耦合器拓扑及硬件特性参数：
 
 ```rust
-let device = backend.device_config()?;
-let topo = device.topology();
+println!("物理比特数: {}", backend.num_qubits()?);
 
-println!("比特数   : {}", topo.num_qubits());
-println!("耦合数   : {}", topo.num_couplings());
+backend.with_device(|device| {
+    let topo = device.topology();
+    println!("可用拓扑比特数: {}", topo.num_qubits());
+    println!("耦合数        : {}", topo.num_couplings());
 
-if let Some(t) = device.calibration_time() {
-    println!("校准时间 : {}", t);
-}
+    if let Some(t) = device.calibration_time() {
+        println!("校准时间      : {}", t);
+    }
+})?;
 ```
 
 ---

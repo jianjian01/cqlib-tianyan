@@ -156,6 +156,15 @@ static void test_null_safety(void) {
     TEST("tianyan_backend_is_available(NULL) returns false");
     EXPECT_FALSE(tianyan_backend_is_available(NULL), "should be false");
 
+    TEST("tianyan_backend_num_qubits(NULL, &out) returns false");
+    {
+        size_t n = 123;
+        EXPECT_FALSE(tianyan_backend_num_qubits(NULL, &n), "should be false");
+    }
+
+    TEST("tianyan_backend_num_qubits(NULL, NULL) returns false");
+    EXPECT_FALSE(tianyan_backend_num_qubits(NULL, NULL), "should be false");
+
     TEST("tianyan_backend_run(NULL, ...) returns NULL");
     EXPECT_NULL(tianyan_backend_run(NULL, NULL, 0, 0), "should be NULL");
 

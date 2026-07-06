@@ -118,6 +118,17 @@ int tianyan_backend_toll(const struct TianyanBackendC *backend);
 bool tianyan_backend_is_available(const struct TianyanBackendC *backend);
 
 /*
+ Write the total number of physical qubits in the backend configuration to `out_num_qubits`.
+
+ This may download the backend configuration on first use and reuses the cached
+ configuration afterwards. Disabled qubits are included in this count.
+
+ Returns `true` on success and `false` on error. On error, call
+ `tianyan_last_error()` for details.
+ */
+bool tianyan_backend_num_qubits(const struct TianyanBackendC *backend, uintptr_t *out_num_qubits);
+
+/*
  Free a `TianyanBackend` returned by any API function.
 
  Passing `NULL` is safe and does nothing.

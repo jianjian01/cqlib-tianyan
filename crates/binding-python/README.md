@@ -43,10 +43,11 @@ platform = TianyanPlatform.login("your_api_key")
 # List available backends
 backends = platform.list_backends()
 for backend in backends:
-    print(f"{backend.name}: {backend.status} ({backend.num_qubits} qubits)")
+    print(f"{backend.name}: {backend.status}")
 
 # Get a specific backend
 backend = platform.get_backend("tianyan-287")
+print(f"Physical qubits: {backend.num_qubits()}")
 
 # Submit a circuit
 task = backend.run(["H Q1\nM Q1"], shots=1000)
@@ -103,7 +104,7 @@ backend.name           # Device identifier
 backend.display_name   # Human-readable name
 backend.status         # DeviceStatus enum
 backend.toll           # DeviceToll enum (free/paid)
-backend.num_qubits     # Number of qubits (may be None)
+backend.num_qubits()   # Physical qubit count (loads config on first use)
 
 # Check availability
 if backend.is_available():

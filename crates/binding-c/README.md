@@ -66,7 +66,7 @@ Linking a Rust static library from C requires several platform-specific system l
 # From crates/binding-c/
 make          # build debug library (cargo build -p binding-c)
 make release  # build release library
-make test     # compile tests/test_api.c and run it (36/36 offline tests)
+make test     # compile tests/test_api.c and run it (38/38 offline tests)
 make example  # compile example/basic_usage.c and run it (requires TIANYAN_API_KEY)
 make clean    # remove compiled C binaries
 ```
@@ -77,11 +77,11 @@ If you prefer not to use Make, the equivalent manual commands are shown in the s
 
 ## Running the Offline Test Suite
 
-`tests/test_api.c` requires no network and no API key. It covers NULL-safety for all 36 API functions, error-path contracts, and string lifecycle.
+`tests/test_api.c` requires no network and no API key. It covers NULL-safety for all 38 API functions, error-path contracts, and string lifecycle.
 
 ```bash
 make test
-# Expected last line: === Results: 36/36 passed ===
+# Expected last line: === Results: 38/38 passed ===
 ```
 
 Manual equivalent (macOS):

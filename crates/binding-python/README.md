@@ -277,8 +277,10 @@ crates/binding-python/
 ## Dependencies
 
 - Python >= 3.10
-- `cqlib` >= 0.1.0 (Python package)
-- `cqlib-core` (Rust workspace dependency)
+- Optional extra `cqlib>=1.4.0b1` (`pip install cqlib-tianyan[cqlib]`) for
+  `device_config()` and `ExecutionResult` conversion. Do not install classic
+  PyPI `cqlib 1.3.x`; it does not provide `cqlib.device` or `cqlib.circuit`.
+- `cqlib-core` (Rust workspace / git dependency)
 - `cqlib-tianyan` (Rust workspace dependency)
 
 ## License

@@ -233,11 +233,13 @@ impl PyCalibrationMode {
 
     /// Compare with another `CalibrationMode` or with a plain string.
     ///
-    /// This allows the natural Python idiom::
+    /// This allows the natural Python idiom:
     ///
-    ///     mode = CalibrationMode("auto")
-    ///     assert mode == "auto"          # True
-    ///     assert mode == CalibrationMode("auto")  # True
+    /// ```python
+    /// mode = CalibrationMode("auto")
+    /// assert mode == "auto"
+    /// assert mode == CalibrationMode("auto")
+    /// ```
     fn __eq__(&self, other: &Bound<'_, PyAny>) -> bool {
         if let Ok(other_mode) = other.extract::<PyCalibrationMode>() {
             self.inner == other_mode.inner

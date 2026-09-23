@@ -122,19 +122,24 @@ if backend.is_available() and backend.device_type.value in ("superconducting", "
     task = backend.run(circuits=["H Q1\nM Q1"], shots=1000)
 
     # Raw execution (no calibration)
-    task = backend.run_raw(circuits=["..."], shots=1000)
+    task = backend.run(circuits=["H Q1\nM Q1"], shots=1000, calibration_mode="disabled")
 
     # With explicit calibration mode
-    task = backend.run_with_mode(
-        circuits=["..."],
+    task = backend.run(
+        circuits=["H Q1\nM Q1"],
         shots=1000,
-        mode="disabled"  # "auto", "enabled", "disabled"
+        calibration_mode="disabled"  # "auto", "enabled", "disabled"
     )
 
     # Get device configuration
     if backend.device_type == "superconducting":
         device = backend.device_config()  # Returns cqlib.device.Device
 ```
+
+`run(circuits, shots, *, calibration_mode="auto")` accepts a string or a
+`CalibrationMode` object. `platform.submit()` accepts the same keyword-only
+option. Each call submits a new task. `run_raw()` and `run_with_mode()` remain
+deprecated aliases and emit `DeprecationWarning`.
 
 #### `TaskHandle`
 

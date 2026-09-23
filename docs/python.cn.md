@@ -320,18 +320,24 @@ task = backend.run(circuits, 1000)
 
 在提交时指定矫正模式（接受字符串或 `CalibrationMode` 对象）：
 
+`run(circuits, shots, *, calibration_mode="auto")` 的校准参数只能按关键字传入，
+`platform.submit()` 也支持同名参数。以下调用展示不同选项，每次调用都会提交新任务。
+旧的 `run_raw()`、`run_with_mode()` 作为兼容别名保留，并发出 `DeprecationWarning`。
+
 ```python
 from cqlib_tianyan import CalibrationMode
 
+circuits = ["H Q1\nM Q1"]
+
 # 强制矫正 — 无数据时报错
-task = backend.run_with_mode(circuits, 1000, mode="enabled")
+task = backend.run(circuits, 1000, calibration_mode="enabled")
 
 # 跳过矫正
-task = backend.run_raw(circuits, 1000)
+task = backend.run(circuits, 1000, calibration_mode="disabled")
 
 # 传入 CalibrationMode 对象（与字符串等价）
 mode = CalibrationMode("disabled")
-task = backend.run_with_mode(circuits, 1000, mode=mode)  # 直接传对象即可
+task = backend.run(circuits, 1000, calibration_mode=mode)  # 直接传对象即可
 
 # CalibrationMode 支持与字符串比较
 assert mode == "disabled"   # True

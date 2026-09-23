@@ -320,18 +320,25 @@ Results are returned in the same order as the submitted circuits.
 
 Set at submission time — accepts either a plain string or a `CalibrationMode` object:
 
+`run(circuits, shots, *, calibration_mode="auto")` takes the calibration policy
+as a keyword-only argument. `platform.submit()` accepts the same option. Each
+call below submits a new task. The legacy `run_raw()` and `run_with_mode()`
+methods remain deprecated aliases and emit `DeprecationWarning`.
+
 ```python
 from cqlib_tianyan import CalibrationMode
 
+circuits = ["H Q1\nM Q1"]
+
 # Require calibration — fail if data is missing
-task = backend.run_with_mode(circuits, 1000, mode="enabled")
+task = backend.run(circuits, 1000, calibration_mode="enabled")
 
 # Skip calibration
-task = backend.run_raw(circuits, 1000)
+task = backend.run(circuits, 1000, calibration_mode="disabled")
 
 # Pass a CalibrationMode object (equivalent to the string)
 mode = CalibrationMode("disabled")
-task = backend.run_with_mode(circuits, 1000, mode=mode)  # object accepted directly
+task = backend.run(circuits, 1000, calibration_mode=mode)  # object accepted directly
 
 # CalibrationMode supports equality comparison with strings
 assert mode == "disabled"                    # True

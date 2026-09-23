@@ -169,12 +169,24 @@ impl TianyanPlatform {
         shots: usize,
         device_name: &str,
     ) -> Result<TaskHandle, TianyanError> {
+        self.submit_with_mode(circuits, shots, device_name, CalibrationMode::Auto)
+    }
+
+    /// Submit directly with an explicit calibration policy, without a device lookup.
+    /// Device capabilities are checked before any circuits are submitted.
+    pub fn submit_with_mode(
+        &self,
+        circuits: Vec<CircuitInput>,
+        shots: usize,
+        device_name: &str,
+        calibration_mode: CalibrationMode,
+    ) -> Result<TaskHandle, TianyanError> {
         TaskHandle::submit(
             self.client.clone(),
             circuits,
             shots,
             device_name,
-            CalibrationMode::Auto,
+            calibration_mode,
         )
     }
 }

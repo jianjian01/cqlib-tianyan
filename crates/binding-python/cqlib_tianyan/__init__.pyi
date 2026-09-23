@@ -9,8 +9,6 @@
 # Any modifications or derivative works of this code must retain this
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
-# Modified to document the upgrading backend status.
-# Modified to expose the backend device type.
 
 """
 Python bindings for the Tianyan quantum cloud platform client.
@@ -241,7 +239,13 @@ class TianyanBackend:
         """
         ...
 
-    def run(self, circuits: List[str], shots: int) -> TaskHandle:
+    def run(
+        self,
+        circuits: List[str],
+        shots: int,
+        *,
+        calibration_mode: str | CalibrationMode = "auto",
+    ) -> TaskHandle:
         """
         Submit circuits and return a task handle.
 
@@ -252,6 +256,10 @@ class TianyanBackend:
         Args:
             circuits: List of QCIS circuit strings.
             shots: Number of measurement shots per circuit.
+            calibration_mode: "auto", "enabled", or "disabled", as a string or
+                CalibrationMode object. Keyword-only; defaults to "auto".
+                "enabled" rejects non-superconducting devices before submission.
+                Missing calibration data raises an error when retrieving results.
 
         Returns:
             TaskHandle: A handle that can be used to poll for results.
@@ -263,7 +271,8 @@ class TianyanBackend:
 
     def run_raw(self, circuits: List[str], shots: int) -> TaskHandle:
         """
-        Like `run()`, but always returns raw (uncalibrated) counts.
+        Deprecated alias for `run(..., calibration_mode="disabled")`.
+        Emits DeprecationWarning.
 
         Args:
             circuits: List of QCIS circuit strings.
@@ -275,16 +284,21 @@ class TianyanBackend:
         ...
 
     def run_with_mode(
-        self, circuits: List[str], shots: int, mode: str = "auto"
+        self,
+        circuits: List[str],
+        shots: int,
+        mode: str | CalibrationMode | None = None,
     ) -> TaskHandle:
         """
-        Like `run()`, but with an explicit calibration mode.
+        Deprecated alias for `run(..., calibration_mode=mode)`.
+        Emits DeprecationWarning; None selects "auto".
         "enabled" requires a superconducting device; other types fail before submission.
 
         Args:
             circuits: List of QCIS circuit strings.
             shots: Number of measurement shots per circuit.
-            mode: One of "auto" (default), "enabled", "disabled".
+            mode: "auto", "enabled", "disabled", or a CalibrationMode object.
+                None defaults to "auto".
 
         Returns:
             TaskHandle: A handle that can be used to poll for results.
@@ -529,17 +543,23 @@ class TianyanPlatform:
         circuits: List[str],
         shots: int,
         device_name: str,
+        *,
+        calibration_mode: str | CalibrationMode = "auto",
     ) -> TaskHandle:
         """
         Submit circuits without fetching a backend handle first.
 
-        Equivalent to `platform.get_backend(device_name).run(circuits, shots)`,
+        Equivalent to `platform.get_backend(device_name).run(circuits, shots,
+        calibration_mode=calibration_mode)`,
         but skips the extra device-list network round-trip.
 
         Args:
             circuits: List of QCIS circuit strings.
             shots: Number of measurement shots per circuit.
             device_name: Target backend identifier.
+            calibration_mode: Keyword-only calibration policy; accepts "auto"
+                (default), "enabled", "disabled", or a CalibrationMode object.
+                Uses the same device restrictions as TianyanBackend.run().
 
         Returns:
             TaskHandle: A handle for tracking the submission.

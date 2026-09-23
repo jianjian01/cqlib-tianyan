@@ -126,7 +126,8 @@ def available_backend(
 
     for backend in backends:
         if backend.is_available() and backend.device_type.value in (
-            "superconducting", "simulator"
+            "superconducting",
+            "simulator",
         ):
             return backend
 

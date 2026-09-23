@@ -10,6 +10,7 @@
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
 # Modified to document the upgrading backend status.
+# Modified to expose the backend device type.
 
 """
 Python bindings for the Tianyan quantum cloud platform client.
@@ -69,6 +70,19 @@ class DeviceStatus:
         - "offline": Device is offline.
         - "upgrading": Device is undergoing an upgrade.
         - "unknown": Unrecognized status code from the API.
+    """
+
+    value: str
+
+    def __repr__(self) -> str: ...
+    def __str__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+
+@final
+class DeviceType:
+    """Backend technology classified locally from the machine code.
+
+    Values: "superconducting", "photonic", "ion_trap", "simulator".
     """
 
     value: str
@@ -196,6 +210,9 @@ class TianyanBackend:
 
     display_name: str
     """User-friendly display name."""
+
+    device_type: DeviceType
+    """Backend technology classified locally from the machine code."""
 
     status: DeviceStatus
     """Current operational status."""
@@ -533,6 +550,7 @@ __all__ = [
     "TianyanError",
     "DeviceStatus",
     "DeviceToll",
+    "DeviceType",
     "CalibrationMode",
     "TianyanConfig",
     "TianyanBackend",

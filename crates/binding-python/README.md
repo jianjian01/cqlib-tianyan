@@ -102,6 +102,7 @@ Represents a quantum computing backend.
 # Backend properties
 backend.name           # Device identifier
 backend.display_name   # Human-readable name
+backend.device_type    # DeviceType enum
 backend.status         # DeviceStatus enum
 backend.toll           # DeviceToll enum (free/paid)
 backend.num_qubits()   # Physical qubit count (loads config on first use)
@@ -165,12 +166,22 @@ config = TianyanConfig(
 #### Enums
 
 ```python
-from cqlib_tianyan import DeviceStatus, DeviceToll, CalibrationMode
+from cqlib_tianyan import DeviceStatus, DeviceToll, DeviceType, CalibrationMode
 
 # DeviceStatus values: "running", "calibration", "under_maintenance", "offline", "upgrading", "unknown"
 # DeviceToll values: "free", "paid", "unknown"
+# DeviceType values: "superconducting", "photonic", "ion_trap", "simulator"
 # CalibrationMode values: "auto", "enabled", "disabled"
 ```
+
+Read `backend.device_type.value`, or compare directly with a string, such as
+`backend.device_type == "simulator"`.
+
+| Device type | `.value` | Devices |
+|---|---|---|
+| Simulator | `simulator` | `tianyan_sw`, `tianyan_s`, `tianyan_tn`, `tianyan_tnn`, `tianyan_sa`, `tianyan_swn` |
+| Photonic | `photonic` | `tianyan-p2000` |
+| Superconducting | `superconducting` | `tianyan176`, `tianyan176-2`, `tianyan24`, `tianyan504`, `tianyan-287`, `tianyan-294` |
 
 ## Exception Handling
 

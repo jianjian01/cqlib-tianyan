@@ -92,9 +92,17 @@ let platform = TianyanPlatform::from_credentials_with_config(cfg)?;
 let backends = platform.list_backends()?;
 
 for b in &backends {
-    println!("{:30} status={:?}", b.name, b.status);
+    println!("{:30} type={:?} status={:?}", b.name, b.device_type, b.status);
 }
 ```
+
+`backend.device_type` 返回设备的 `DeviceType`。
+
+| `DeviceType` | 设备列表 |
+|---|---|
+| `Simulator`（仿真机） | `tianyan_sw`, `tianyan_s`, `tianyan_tn`, `tianyan_tnn`, `tianyan_sa`, `tianyan_swn` |
+| `Photonic`（光量子） | `tianyan-p2000` |
+| `Superconducting`（超导） | `tianyan176`, `tianyan176-2`, `tianyan24`, `tianyan504`, `tianyan-287`|
 
 ### 3.2 获取指定后端
 

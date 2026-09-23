@@ -37,7 +37,7 @@ use crate::error::IntoPyResult;
 use crate::task::PyTaskHandle;
 use cqlib_core::circuit::Instruction;
 use cqlib_core::device::Device;
-use cqlib_tianyan::device::{DeviceStatus, DeviceToll, TianyanBackend};
+use cqlib_tianyan::device::{DeviceStatus, DeviceToll, DeviceType, TianyanBackend};
 use cqlib_tianyan::task::CalibrationMode;
 use pyo3::prelude::*;
 use rustworkx_core::petgraph::visit::{EdgeRef, IntoEdgeReferences};
@@ -114,6 +114,53 @@ impl PyDeviceStatus {
     fn __eq__(&self, other: &Bound<'_, PyAny>) -> bool {
         if let Ok(other_status) = other.extract::<PyDeviceStatus>() {
             self.inner == other_status.inner
+        } else if let Ok(s) = other.extract::<String>() {
+            self.value() == s.as_str()
+        } else {
+            false
+        }
+    }
+}
+
+/// Backend technology classified locally from the machine code.
+///
+/// Values: `"superconducting"`, `"photonic"`, `"ion_trap"`, `"simulator"`.
+#[pyclass(name = "DeviceType", module = "cqlib_tianyan", from_py_object)]
+#[derive(Clone, Debug)]
+pub struct PyDeviceType {
+    inner: DeviceType,
+}
+
+impl From<DeviceType> for PyDeviceType {
+    fn from(inner: DeviceType) -> Self {
+        Self { inner }
+    }
+}
+
+#[pymethods]
+impl PyDeviceType {
+    /// The device type as a string.
+    #[getter]
+    fn value(&self) -> &'static str {
+        match self.inner {
+            DeviceType::Superconducting => "superconducting",
+            DeviceType::Photonic => "photonic",
+            DeviceType::IonTrap => "ion_trap",
+            DeviceType::Simulator => "simulator",
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("DeviceType('{}')", self.value())
+    }
+
+    fn __str__(&self) -> &'static str {
+        self.value()
+    }
+
+    fn __eq__(&self, other: &Bound<'_, PyAny>) -> bool {
+        if let Ok(other_type) = other.extract::<PyDeviceType>() {
+            self.inner == other_type.inner
         } else if let Ok(s) = other.extract::<String>() {
             self.value() == s.as_str()
         } else {
@@ -298,6 +345,12 @@ impl PyTianyanBackend {
         &self.inner.display_name
     }
 
+    /// Backend technology classified locally from the machine code.
+    #[getter]
+    fn device_type(&self) -> PyDeviceType {
+        self.inner.device_type.into()
+    }
+
     /// Current operational status.
     #[getter]
     fn status(&self) -> PyDeviceStatus {
@@ -396,8 +449,9 @@ impl PyTianyanBackend {
 
     fn __repr__(&self) -> String {
         format!(
-            "TianyanBackend(name='{}', status='{}')",
+            "TianyanBackend(name='{}', device_type='{}', status='{}')",
             self.inner.name,
+            PyDeviceType::from(self.inner.device_type).value(),
             PyDeviceStatus::from(self.inner.status.clone()).value(),
         )
     }

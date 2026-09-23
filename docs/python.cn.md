@@ -102,8 +102,17 @@ platform = TianyanPlatform.from_credentials(
 backends = platform.list_backends()
 
 for b in backends:
-    print(f"{b.name:30} status={b.status}")
+    print(f"{b.name:30} type={b.device_type} status={b.status}")
 ```
+
+`backend.device_type` 返回设备的 `DeviceType`。
+可使用 `.value` 读取字符串，或直接比较，例如 `backend.device_type == "simulator"`。
+
+| 类型 | `.value` | 设备列表                                                                              |
+|---|---|---------------------------------------------------------------------------------------|
+| Simulator（仿真机） | `simulator` | `tianyan_sw`, `tianyan_s`, `tianyan_tn`, `tianyan_tnn`, `tianyan_sa`, `tianyan_swn`   |
+| Photonic（光量子） | `photonic` | `tianyan-p2000`                                                                       |
+| Superconducting（超导） | `superconducting` | `tianyan176`, `tianyan176-2`, `tianyan24`, `tianyan504`, `tianyan-287`, `tianyan-294` |
 
 ### 3.2 获取指定后端
 

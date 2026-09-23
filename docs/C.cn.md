@@ -218,6 +218,16 @@ for (size_t i = 0; i < n_backends; i++) {
 tianyan_backend_list_free(backends, n_backends);
 ```
 
+`tianyan_backend_device_type(backend)` 返回设备类型：
+
+| 类型码 | 类型 | 设备列表 |
+|---|---|---|
+| `3` | Simulator（仿真机） | `tianyan_sw`, `tianyan_s`, `tianyan_tn`, `tianyan_tnn`, `tianyan_sa`, `tianyan_swn` |
+| `1` | Photonic（光量子） | `tianyan-p2000` |
+| `0` | Superconducting（超导） | `tianyan176`, `tianyan176-2`, `tianyan24`, `tianyan504`, `tianyan-287`, `tianyan-294` |
+
+`backend` 为 `NULL` 时返回 `-1`。
+
 后端状态码和收费码含义：
 
 | 状态码 | 含义 |

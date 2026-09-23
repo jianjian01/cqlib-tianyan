@@ -92,9 +92,17 @@ let platform = TianyanPlatform::from_credentials_with_config(cfg)?;
 let backends = platform.list_backends()?;
 
 for b in &backends {
-    println!("{:30} status={:?}", b.name, b.status);
+    println!("{:30} type={:?} status={:?}", b.name, b.device_type, b.status);
 }
 ```
+
+`backend.device_type` returns the backend's `DeviceType`.
+
+| `DeviceType` | Devices |
+|---|---|
+| `Simulator` | `tianyan_sw`, `tianyan_s`, `tianyan_tn`, `tianyan_tnn`, `tianyan_sa`, `tianyan_swn` |
+| `Superconducting` | `tianyan176`, `tianyan176-2`, `tianyan24`, `tianyan504`, `tianyan-287`, `tianyan-294` |
+| `Photonic` | `tianyan-p2000` |
 
 ### 3.2 Select a specific backend
 

@@ -89,6 +89,19 @@ const char *tianyan_backend_name(const struct TianyanBackendC *backend);
 const char *tianyan_backend_display_name(const struct TianyanBackendC *backend);
 
 /*
+ Return the backend technology, classified locally from its machine code.
+
+ | Code | Device type     |
+ |------|-----------------|
+ | 0    | Superconducting |
+ | 1    | Photonic        |
+ | 2    | IonTrap         |
+ | 3    | Simulator       |
+ | -1   | NULL backend    |
+ */
+int tianyan_backend_device_type(const struct TianyanBackendC *backend);
+
+/*
  Return the operational status of the backend as an integer code.
 
  | Code | Status              |

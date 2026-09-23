@@ -102,8 +102,17 @@ platform = TianyanPlatform.from_credentials(
 backends = platform.list_backends()
 
 for b in backends:
-    print(f"{b.name:30} status={b.status}")
+    print(f"{b.name:30} type={b.device_type} status={b.status}")
 ```
+
+`backend.device_type` returns the backend's `DeviceType`.
+Read its `.value` string or compare it directly, for example `backend.device_type == "simulator"`.
+
+| Device type | `.value` | Devices |
+|---|---|---|
+| Simulator | `simulator` | `tianyan_sw`, `tianyan_s`, `tianyan_tn`, `tianyan_tnn`, `tianyan_sa`, `tianyan_swn` |
+| Photonic | `photonic` | `tianyan-p2000` |
+| Superconducting | `superconducting` | `tianyan176`, `tianyan176-2`, `tianyan24`, `tianyan504`, `tianyan-287`, `tianyan-294` |
 
 ### 3.2 Select a specific backend
 

@@ -5,7 +5,6 @@
 // This code is licensed under the Apache License, Version 2.0. You may
 // obtain a copy of this license in the LICENSE.txt file in the root directory
 // of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
-// Modified to expose backend status 4 as upgrading.
 
 //! C API for [`TianyanBackend`] and the list returned by `tianyan_platform_list_backends()`.
 //!
@@ -23,7 +22,7 @@
 //! | 1    | Enabled  |
 //! | 2    | Disabled |
 
-use cqlib_tianyan::device::{DeviceStatus, DeviceToll, TianyanBackend};
+use cqlib_tianyan::device::{DeviceStatus, DeviceToll, DeviceType, TianyanBackend};
 use cqlib_tianyan::task::CalibrationMode;
 use std::os::raw::{c_char, c_int};
 
@@ -60,6 +59,29 @@ pub extern "C" fn tianyan_backend_display_name(backend: *const TianyanBackendC) 
     }
     let b = unsafe { &*backend };
     b.0.display_name.as_ptr() as *const c_char
+}
+
+/// Return the backend technology, classified locally from its machine code.
+///
+/// | Code | Device type     |
+/// |------|-----------------|
+/// | 0    | Superconducting |
+/// | 1    | Photonic        |
+/// | 2    | IonTrap         |
+/// | 3    | Simulator       |
+/// | -1   | NULL backend    |
+#[unsafe(no_mangle)]
+pub extern "C" fn tianyan_backend_device_type(backend: *const TianyanBackendC) -> c_int {
+    if backend.is_null() {
+        return -1;
+    }
+    let b = unsafe { &*backend };
+    match b.0.device_type {
+        DeviceType::Superconducting => 0,
+        DeviceType::Photonic => 1,
+        DeviceType::IonTrap => 2,
+        DeviceType::Simulator => 3,
+    }
 }
 
 /// Return the operational status of the backend as an integer code.

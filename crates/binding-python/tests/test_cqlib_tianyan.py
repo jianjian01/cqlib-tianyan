@@ -39,6 +39,7 @@ from cqlib_tianyan import (
     CalibrationMode,
     DeviceStatus,
     DeviceToll,
+    DeviceType,
     TaskHandle,
     TianyanBackend,
     TianyanConfig,
@@ -406,6 +407,16 @@ class TestTianyanBackend:
         assert isinstance(backend.name, str)
         assert len(backend.name) > 0
         assert isinstance(backend.display_name, str)
+        assert isinstance(backend.device_type, DeviceType)
+        assert backend.device_type.value in (
+            "superconducting",
+            "photonic",
+            "ion_trap",
+            "simulator",
+        )
+        assert backend.device_type == backend.device_type.value
+        assert str(backend.device_type) == backend.device_type.value
+        assert repr(backend.device_type) == f"DeviceType('{backend.device_type.value}')"
         assert isinstance(backend.status, DeviceStatus)
         assert isinstance(backend.toll, DeviceToll)
 
@@ -657,6 +668,7 @@ def test_module_exports() -> None:
     assert hasattr(tianyan, "TianyanError")
     assert hasattr(tianyan, "DeviceStatus")
     assert hasattr(tianyan, "DeviceToll")
+    assert hasattr(tianyan, "DeviceType")
     assert hasattr(tianyan, "CalibrationMode")
 
 

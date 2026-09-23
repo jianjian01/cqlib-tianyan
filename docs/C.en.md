@@ -200,6 +200,16 @@ for (size_t i = 0; i < n; i++) {
 tianyan_backend_list_free(backends, n);
 ```
 
+**Device types** returned by `tianyan_backend_device_type(backend)`:
+
+| Code | Device type | Devices |
+|---|---|---|
+| `3` | Simulator | `tianyan_sw`, `tianyan_s`, `tianyan_tn`, `tianyan_tnn`, `tianyan_sa`, `tianyan_swn` |
+| `1` | Photonic | `tianyan-p2000` |
+| `0` | Superconducting | `tianyan176`, `tianyan176-2`, `tianyan24`, `tianyan504`, `tianyan-287`, `tianyan-294` |
+
+Passing a `NULL` backend returns `-1`.
+
 **Status codes** returned by `tianyan_backend_status`:
 
 | Code | Meaning |

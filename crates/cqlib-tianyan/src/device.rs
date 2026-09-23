@@ -9,7 +9,6 @@
 // Any modifications or derivative works of this code must retain this
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
-// Modified to recognize backend status 4 as upgrading.
 
 //! Quantum backend representation and listing for the Tianyan platform.
 //!
@@ -108,6 +107,37 @@ impl DeviceStatus {
     }
 }
 
+/// Backend technology, classified locally from the case-sensitive machine code.
+///
+/// The device-list API does not provide this field. Codes starting with `tianyan_`
+/// are simulators, `tianyan-p` are photonic, and `tianyan-ion` are ion traps.
+/// Other codes starting with `tianyan` are superconducting. Devices without the
+/// `tianyan` prefix are excluded from the backend list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeviceType {
+    Superconducting,
+    Photonic,
+    IonTrap,
+    Simulator,
+}
+
+impl DeviceType {
+    fn from_code(code: &str) -> Option<Self> {
+        if !code.starts_with("tianyan") {
+            return None;
+        }
+        Some(if code.starts_with("tianyan_") {
+            Self::Simulator
+        } else if code.starts_with("tianyan-p") {
+            Self::Photonic
+        } else if code.starts_with("tianyan-ion") {
+            Self::IonTrap
+        } else {
+            Self::Superconducting
+        })
+    }
+}
+
 /// Pricing model of a quantum device.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeviceToll {
@@ -155,6 +185,8 @@ pub struct TianyanBackend {
     pub name: String,
     /// User-friendly display name.
     pub display_name: String,
+    /// Backend technology, classified locally from the machine code.
+    pub device_type: DeviceType,
     /// Current operational status.
     pub status: DeviceStatus,
     /// Pricing model.
@@ -170,6 +202,7 @@ impl Clone for TianyanBackend {
         Self {
             name: self.name.clone(),
             display_name: self.display_name.clone(),
+            device_type: self.device_type,
             status: self.status.clone(),
             toll: self.toll.clone(),
             client: self.client.clone(),
@@ -188,6 +221,7 @@ impl std::fmt::Debug for TianyanBackend {
         f.debug_struct("TianyanBackend")
             .field("name", &self.name)
             .field("display_name", &self.display_name)
+            .field("device_type", &self.device_type)
             .field("status", &self.status)
             .field("toll", &self.toll)
             .finish()
@@ -195,16 +229,18 @@ impl std::fmt::Debug for TianyanBackend {
 }
 
 impl TianyanBackend {
-    /// Build a `TianyanBackend` from the raw API record.
-    fn from_raw(raw: RawDevice, client: Arc<TianyanClient>) -> Self {
-        Self {
+    /// Build a backend from a Tianyan API record, excluding non-Tianyan codes.
+    fn from_raw(raw: RawDevice, client: Arc<TianyanClient>) -> Option<Self> {
+        let device_type = DeviceType::from_code(&raw.code)?;
+        Some(Self {
             display_name: raw.name.clone().unwrap_or_else(|| raw.code.clone()),
+            device_type,
             name: raw.code,
             status: DeviceStatus::from_code(raw.status),
             toll: DeviceToll::from_code(raw.is_toll.unwrap_or(0)),
             client,
             cached_config: Mutex::new(None),
-        }
+        })
     }
 
     /// Returns `true` when the device is [`DeviceStatus::Running`].
@@ -335,13 +371,13 @@ impl TianyanBackend {
     }
 }
 
-/// Fetch the full device list from the platform and return it as [`TianyanBackend`] objects.
+/// Fetch the device list and return backends whose codes start with `tianyan`.
 pub fn list_backends(client: Arc<TianyanClient>) -> Result<Vec<TianyanBackend>, TianyanError> {
     let resp: crate::client::ApiResponse<Vec<RawDevice>> = client.get(DEVICE_LIST_PATH)?;
     let raw_list = resp.into_data()?;
     Ok(raw_list
         .into_iter()
-        .map(|r| TianyanBackend::from_raw(r, client.clone()))
+        .filter_map(|r| TianyanBackend::from_raw(r, client.clone()))
         .collect())
 }
 

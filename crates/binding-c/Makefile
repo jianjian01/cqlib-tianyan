@@ -16,7 +16,7 @@ CC             ?= cc
 # Extra system libs needed on Linux
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Linux)
-    SYS_LIBS := -lpthread -ldl -lm
+    SYS_LIBS := -lpthread -ldl -lm $(shell pkg-config --libs openssl)
 else
     # macOS: link all system frameworks pulled in transitively by Rust crates
     SYS_LIBS := -framework Security -framework CoreFoundation -framework SystemConfiguration -lc++

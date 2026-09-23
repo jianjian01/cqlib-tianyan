@@ -120,10 +120,11 @@ class CalibrationMode:
         value: One of "auto", "enabled", "disabled".
 
     Modes:
-        - "auto": Apply mitigation if calibration data is available;
-          fall back to raw counts otherwise (default).
-        - "enabled": Always apply mitigation; error if no calibration
-          data exists.
+        - "auto": On superconducting devices, apply mitigation if data is available
+          and at most 14 qubits are measured; otherwise return raw counts (default).
+          Non-superconducting devices skip configuration download and calibration.
+        - "enabled": Require a superconducting device and calibration data;
+          other device types fail before submission.
         - "disabled": Never apply mitigation; always return raw counts.
 
     Raises:
@@ -202,7 +203,7 @@ class TianyanBackend:
         >>> backend = platform.get_backend("tianyan-287")
         >>> if backend.is_available():
         ...     task = backend.run(["H Q1\\nM Q1"], shots=1000)
-        ...     results = task.wait(timeout_secs=120.0)
+        ...     results = task.wait(timeout=120.0)
     """
 
     name: str
@@ -225,7 +226,8 @@ class TianyanBackend:
         Returns True when the backend is in "running" status.
 
         Returns:
-            bool: Whether the backend is available for submissions.
+            bool: Whether the backend is running. Submission also requires a
+                superconducting device or simulator.
         """
         ...
 
@@ -234,7 +236,8 @@ class TianyanBackend:
         Return the total number of physical qubits in the backend configuration.
 
         This may download the backend configuration on first use. Disabled
-        qubits are included in this count.
+        qubits are included in this count. Only superconducting devices support
+        configuration access; other types raise an error.
         """
         ...
 
@@ -242,8 +245,9 @@ class TianyanBackend:
         """
         Submit circuits and return a task handle.
 
-        Readout error mitigation is applied automatically when calibration
-        data is available (CalibrationMode.auto is the default).
+        Only superconducting devices and simulators can submit tasks. In the
+        default "auto" mode, superconducting devices apply mitigation when data
+        is available and at most 14 qubits are measured. Simulators return raw counts.
 
         Args:
             circuits: List of QCIS circuit strings.
@@ -275,6 +279,7 @@ class TianyanBackend:
     ) -> TaskHandle:
         """
         Like `run()`, but with an explicit calibration mode.
+        "enabled" requires a superconducting device; other types fail before submission.
 
         Args:
             circuits: List of QCIS circuit strings.
@@ -292,7 +297,7 @@ class TianyanBackend:
 
     def device_config(self) -> "Device":
         """
-        Download the device calibration configuration.
+        Download the device calibration configuration (superconducting devices only).
 
         Returns a `cqlib.device.Device` object populated with topology,
         qubit properties, gate errors, and readout fidelities.
@@ -327,7 +332,7 @@ class TaskHandle:
         >>> partial = task.status()
         >>>
         >>> # Block until all results are ready
-        >>> results = task.wait(timeout_secs=120.0, poll_interval_secs=5.0)
+        >>> results = task.wait(timeout=120.0, poll_interval=5.0)
         >>> for r in results:
         ...     print(r.task_id, r.counts, r.probabilities)
     """
@@ -361,8 +366,8 @@ class TaskHandle:
 
     def wait(
         self,
-        timeout_secs: float,
-        poll_interval_secs: float = 5.0,
+        timeout: float = 120.0,
+        poll_interval: float = 5.0,
     ) -> List[ExecutionResult]:
         """
         Block until all submitted circuits have results, then return them.
@@ -373,8 +378,8 @@ class TaskHandle:
         when the task was submitted (default: "auto").
 
         Args:
-            timeout_secs: Maximum wall-clock seconds to wait.
-            poll_interval_secs: Seconds between consecutive poll requests (default: 5.0).
+            timeout: Maximum wall-clock time to wait, in seconds (default: 120.0).
+            poll_interval: Time between consecutive poll requests, in seconds (default: 5.0).
 
         Returns:
             List[ExecutionResult]: Results for all submitted circuits.
@@ -386,15 +391,15 @@ class TaskHandle:
 
     def wait_raw(
         self,
-        timeout_secs: float,
-        poll_interval_secs: float = 5.0,
+        timeout: float = 120.0,
+        poll_interval: float = 5.0,
     ) -> List[ExecutionResult]:
         """
         Like `wait()`, but always returns raw (uncalibrated) counts.
 
         Args:
-            timeout_secs: Maximum wall-clock seconds to wait.
-            poll_interval_secs: Seconds between consecutive poll requests (default: 5.0).
+            timeout: Maximum wall-clock time to wait, in seconds (default: 120.0).
+            poll_interval: Time between consecutive poll requests, in seconds (default: 5.0).
 
         Returns:
             List[ExecutionResult]: Results for all submitted circuits with raw counts.
@@ -430,7 +435,7 @@ class TianyanPlatform:
         >>>
         >>> # Submit circuits
         >>> task = platform.submit(["H Q1\\nM Q1"], shots=1000, device_name="tianyan-287")
-        >>> results = task.wait(timeout_secs=120.0)
+        >>> results = task.wait(timeout=120.0)
     """
 
     @staticmethod

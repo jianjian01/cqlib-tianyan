@@ -40,7 +40,7 @@
 //!
 //! # Submit circuits
 //! task = platform.submit(["H Q1\nM Q1"], shots=1000, device_name="tianyan-287")
-//! results = task.wait(timeout_secs=120.0)
+//! results = task.wait(timeout=120.0)
 //! ```
 
 use crate::backend::PyTianyanBackend;

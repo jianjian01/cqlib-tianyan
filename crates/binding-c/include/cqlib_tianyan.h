@@ -136,6 +136,7 @@ bool tianyan_backend_is_available(const struct TianyanBackendC *backend);
 
  This may download the backend configuration on first use and reuses the cached
  configuration afterwards. Disabled qubits are included in this count.
+ Only superconducting backends support this operation; other types set an error.
 
  Returns `true` on success and `false` on error. On error, call
  `tianyan_last_error()` for details.
@@ -159,6 +160,8 @@ void tianyan_backend_list_free(struct TianyanBackendC **backends, uintptr_t len)
 
 /*
  Submit circuits on this backend with the default calibration mode (`Auto`).
+ Only superconducting devices and simulators can submit tasks. Simulators return
+ raw counts without downloading configuration or applying readout calibration.
 
  - `circuits`: array of `n_circuits` null-terminated QCIS strings.
  - `shots`: number of measurement shots per circuit.
@@ -183,6 +186,7 @@ struct TianyanTaskC *tianyan_backend_run_raw(const struct TianyanBackendC *backe
  Like `tianyan_backend_run()` but with an explicit calibration mode.
 
  `mode`: 0 = Auto, 1 = Enabled, 2 = Disabled.
+ Enabled requires a superconducting device; other types fail before submission.
  */
 struct TianyanTaskC *tianyan_backend_run_with_mode(const struct TianyanBackendC *backend,
                                                    const char *const *circuits,

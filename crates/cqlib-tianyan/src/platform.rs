@@ -59,7 +59,7 @@ use crate::client::TianyanClient;
 use crate::config::TianyanConfig;
 use crate::device::{self, CircuitInput, TianyanBackend};
 use crate::error::TianyanError;
-use crate::task::TaskHandle;
+use crate::task::{CalibrationMode, TaskHandle};
 use std::sync::Arc;
 
 /// Synchronous client for the Tianyan quantum cloud platform.
@@ -162,12 +162,19 @@ impl TianyanPlatform {
     ///
     /// This is equivalent to calling `platform.get_backend(device_name)?.run(circuits, shots)`,
     /// but skips the extra network round-trip for the device lookup.
+    /// Only superconducting devices and simulators can submit tasks.
     pub fn submit(
         &self,
         circuits: Vec<CircuitInput>,
         shots: usize,
         device_name: &str,
     ) -> Result<TaskHandle, TianyanError> {
-        TaskHandle::submit(self.client.clone(), circuits, shots, device_name)
+        TaskHandle::submit(
+            self.client.clone(),
+            circuits,
+            shots,
+            device_name,
+            CalibrationMode::Auto,
+        )
     }
 }

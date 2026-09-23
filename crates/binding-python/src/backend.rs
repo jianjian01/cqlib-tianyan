@@ -224,8 +224,8 @@ impl PyDeviceToll {
 ///
 /// | Mode | Behaviour |
 /// |------|-----------|
-/// | `"auto"` | Apply mitigation if calibration data is available; fall back to raw (default). |
-/// | `"enabled"` | Always apply mitigation; error if no calibration data exists. |
+/// | `"auto"` | Apply mitigation on superconducting devices if data is available and at most 14 qubits are measured; otherwise return raw counts (default). |
+/// | `"enabled"` | Require a superconducting device and calibration data; reject other device types before submission. |
 /// | `"disabled"` | Never apply mitigation; always return raw counts. |
 #[pyclass(name = "CalibrationMode", module = "cqlib_tianyan", from_py_object)]
 #[derive(Clone, Debug)]
@@ -317,7 +317,7 @@ impl PyCalibrationMode {
 /// backend = platform.get_backend("tianyan-287")
 /// if backend.is_available():
 ///     task = backend.run(["H Q1\nM Q1"], shots=1000)
-///     results = task.wait(timeout_secs=120.0)
+///     results = task.wait(timeout=120.0)
 ///     print(results[0].counts)
 /// ```
 #[pyclass(name = "TianyanBackend", module = "cqlib_tianyan")]
@@ -372,14 +372,16 @@ impl PyTianyanBackend {
     ///
     /// Downloads the backend configuration on first use and reuses the cached
     /// configuration afterwards. Disabled qubits are included in this count.
+    /// Only superconducting backends support this operation.
     fn num_qubits(&self, py: Python<'_>) -> PyResult<usize> {
         self.inner.num_qubits().map_py_err(py)
     }
 
     /// Submit circuits and return a task handle.
     ///
-    /// Readout error mitigation is applied automatically when calibration
-    /// data is available (`CalibrationMode.auto` is the default).
+    /// Only superconducting devices and simulators can submit tasks. Readout error
+    /// mitigation is applied automatically on superconducting devices when data is
+    /// available and at most 14 qubits are measured (`"auto"` is the default).
     ///
     /// # Arguments
     /// * `circuits` - List of QCIS circuit strings.
@@ -412,6 +414,7 @@ impl PyTianyanBackend {
     }
 
     /// Like `run()`, but with an explicit calibration mode.
+    /// `"enabled"` requires a superconducting backend; other types fail before submission.
     ///
     /// # Arguments
     /// * `circuits` - List of QCIS circuit strings.
@@ -435,7 +438,7 @@ impl PyTianyanBackend {
             .map(PyTaskHandle::from)
     }
 
-    /// Download the device calibration configuration.
+    /// Download the device calibration configuration (superconducting backends only).
     ///
     /// Returns a `cqlib.device.Device` object populated with topology,
     /// qubit properties, gate errors, and readout fidelities.

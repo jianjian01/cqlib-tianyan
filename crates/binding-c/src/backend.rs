@@ -144,6 +144,7 @@ pub extern "C" fn tianyan_backend_is_available(backend: *const TianyanBackendC) 
 ///
 /// This may download the backend configuration on first use and reuses the cached
 /// configuration afterwards. Disabled qubits are included in this count.
+/// Only superconducting backends support this operation; other types set an error.
 ///
 /// Returns `true` on success and `false` on error. On error, call
 /// `tianyan_last_error()` for details.
@@ -221,6 +222,8 @@ fn parse_calibration_mode(mode: c_int) -> Result<CalibrationMode, String> {
 }
 
 /// Submit circuits on this backend with the default calibration mode (`Auto`).
+/// Only superconducting devices and simulators can submit tasks. Simulators return
+/// raw counts without downloading configuration or applying readout calibration.
 ///
 /// - `circuits`: array of `n_circuits` null-terminated QCIS strings.
 /// - `shots`: number of measurement shots per circuit.
@@ -289,6 +292,7 @@ pub extern "C" fn tianyan_backend_run_raw(
 /// Like `tianyan_backend_run()` but with an explicit calibration mode.
 ///
 /// `mode`: 0 = Auto, 1 = Enabled, 2 = Disabled.
+/// Enabled requires a superconducting device; other types fail before submission.
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_backend_run_with_mode(
     backend: *const TianyanBackendC,

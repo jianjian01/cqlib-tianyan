@@ -122,7 +122,7 @@ pub enum DeviceType {
 }
 
 impl DeviceType {
-    fn from_code(code: &str) -> Option<Self> {
+    pub fn from_code(code: &str) -> Option<Self> {
         if !code.starts_with("tianyan") {
             return None;
         }
@@ -178,8 +178,8 @@ struct CachedConfig {
 
 /// A quantum computing backend available on the Tianyan cloud platform.
 ///
-/// Use [`TianyanBackend::is_available`] to check that the backend is accepting jobs
-/// before submitting circuits.
+/// Use [`TianyanBackend::is_available`] to check the backend's running status.
+/// Task submission additionally requires a superconducting device or simulator.
 pub struct TianyanBackend {
     /// The machine code used as `computerCode` when submitting jobs.
     pub name: String,
@@ -274,8 +274,8 @@ impl TianyanBackend {
     /// provides access to the underlying [`cqlib_core::device::Device`] which
     /// contains topology, qubit properties, gate errors, and readout fidelities.
     ///
-    /// If the API did not report qubit count, it will be computed from the
-    /// device topology on first access.
+    /// Only superconducting backends support configuration access. Other device
+    /// types return an error before any download request.
     ///
     /// # Example
     ///
@@ -305,6 +305,7 @@ impl TianyanBackend {
     /// cached configuration afterwards. Disabled qubits are included in this count;
     /// use [`with_device`](Self::with_device) and inspect `device.topology()` when
     /// you need the currently available topology qubit count.
+    /// Only superconducting backends support this operation.
     pub fn num_qubits(&self) -> Result<usize, TianyanError> {
         self.with_device(|device| device.qubits().count())
     }
@@ -313,7 +314,7 @@ impl TianyanBackend {
     /// measurement error mitigation.
     ///
     /// Returns `None` if the backend's config does not contain the required
-    /// readout fidelity arrays.
+    /// readout fidelity arrays. Only superconducting backends support this operation.
     pub fn readout_calibration_data(&self) -> Result<Option<ReadoutCalibrationData>, TianyanError> {
         self.with_config(|c| c.calibration.clone())
     }
@@ -321,15 +322,16 @@ impl TianyanBackend {
     /// Submit one or more circuits on this backend.
     ///
     /// By default, [`wait`](crate::task::TaskHandle::wait) on the returned handle will
-    /// apply readout error mitigation if calibration data is available
+    /// apply readout error mitigation on superconducting devices if calibration data is available
     /// ([`CalibrationMode::Auto`]).  Pass a custom mode via
     /// [`run_with_mode`](Self::run_with_mode) to override this behaviour.
+    /// Only superconducting backends and simulators can submit tasks.
     ///
     /// ```rust,ignore
     /// # use cqlib_tianyan::{TianyanPlatform, device::CircuitInput};
     /// # use std::time::Duration;
     /// let platform = TianyanPlatform::login("your_api_key")?;
-    /// let backend = platform.get_backend("QuantumComputer_S4")?;
+    /// let backend = platform.get_backend("tianyan-287")?;
     ///
     /// // QCIS string — results will be readout-calibrated by default
     /// let task = backend.run(vec!["H Q0\nCZ Q0 Q1\nM Q0 Q1".into()], 1000)?;
@@ -343,6 +345,7 @@ impl TianyanBackend {
     }
 
     /// Like [`run`](Self::run) but with an explicit [`CalibrationMode`].
+    /// `Enabled` is rejected for non-superconducting devices before submission.
     ///
     /// ```rust,ignore
     /// use cqlib_tianyan::task::CalibrationMode;
@@ -356,9 +359,13 @@ impl TianyanBackend {
         shots: usize,
         calibration_mode: CalibrationMode,
     ) -> Result<TaskHandle, TianyanError> {
-        let mut handle = TaskHandle::submit(self.client.clone(), circuits, shots, &self.name)?;
-        handle.calibration_mode = calibration_mode;
-        Ok(handle)
+        TaskHandle::submit(
+            self.client.clone(),
+            circuits,
+            shots,
+            &self.name,
+            calibration_mode,
+        )
     }
 
     /// Like [`run`](Self::run) but always returns **raw** (uncalibrated) counts.

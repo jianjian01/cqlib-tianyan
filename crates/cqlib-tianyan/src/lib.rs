@@ -66,3 +66,6 @@ pub use device::{CircuitInput, DeviceStatus, DeviceToll, DeviceType, TianyanBack
 pub use error::TianyanError;
 pub use platform::TianyanPlatform;
 pub use task::{CalibrationMode, TaskHandle};
+
+#[cfg(test)]
+mod capability_test;

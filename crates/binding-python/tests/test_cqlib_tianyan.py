@@ -224,6 +224,7 @@ class TestDeviceStatus:
                 "calibration",
                 "under_maintenance",
                 "offline",
+                "upgrading",
                 "unknown",
             ]
 

@@ -208,6 +208,7 @@ tianyan_backend_list_free(backends, n);
 | `1` | Calibrating |
 | `2` | Maintenance |
 | `3` | Offline |
+| `4` | Upgrading |
 | `-1` | Unknown |
 
 **Toll codes** returned by `tianyan_backend_toll`:

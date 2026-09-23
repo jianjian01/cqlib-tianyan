@@ -226,6 +226,7 @@ tianyan_backend_list_free(backends, n_backends);
 | `1` | 校准中（Calibration） |
 | `2` | 维护中（UnderMaintenance） |
 | `3` | 离线（OffLine） |
+| `4` | 升级中（Upgrading） |
 | `-1` | 未知（Unknown） |
 
 | 收费码 | 含义 |

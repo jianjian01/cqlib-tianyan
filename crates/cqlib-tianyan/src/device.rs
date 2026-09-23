@@ -9,6 +9,7 @@
 // Any modifications or derivative works of this code must retain this
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
+// Modified to recognize backend status 4 as upgrading.
 
 //! Quantum backend representation and listing for the Tianyan platform.
 //!
@@ -88,6 +89,8 @@ pub enum DeviceStatus {
     UnderMaintenance,
     /// Device is offline.
     OffLine,
+    /// Device is undergoing an upgrade.
+    Upgrading,
     /// An unknown status code was returned by the API.
     Unknown(i64),
 }
@@ -99,6 +102,7 @@ impl DeviceStatus {
             1 => DeviceStatus::Calibration,
             2 => DeviceStatus::UnderMaintenance,
             3 => DeviceStatus::OffLine,
+            4 => DeviceStatus::Upgrading,
             other => DeviceStatus::Unknown(other),
         }
     }
@@ -128,7 +132,7 @@ struct RawDevice {
     code: String,
     /// Human-readable display name.
     name: Option<String>,
-    /// Operational status code (0=running, 1=calibration, 2=maintenance, 3=offline).
+    /// Operational status code (0=running, 1=calibration, 2=maintenance, 3=offline, 4=upgrading).
     status: i64,
     /// Pricing tier code (1=free, 2=paid).
     #[serde(rename = "isToll")]

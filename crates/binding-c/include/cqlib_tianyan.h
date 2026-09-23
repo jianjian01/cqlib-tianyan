@@ -97,6 +97,7 @@ const char *tianyan_backend_display_name(const struct TianyanBackendC *backend);
  | 1    | Calibration         |
  | 2    | UnderMaintenance    |
  | 3    | OffLine             |
+ | 4    | Upgrading           |
  | -1   | Unknown             |
  */
 int tianyan_backend_status(const struct TianyanBackendC *backend);

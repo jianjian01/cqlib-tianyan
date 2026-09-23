@@ -167,7 +167,7 @@ config = TianyanConfig(
 ```python
 from cqlib_tianyan import DeviceStatus, DeviceToll, CalibrationMode
 
-# DeviceStatus values: "running", "calibration", "under_maintenance", "offline", "unknown"
+# DeviceStatus values: "running", "calibration", "under_maintenance", "offline", "upgrading", "unknown"
 # DeviceToll values: "free", "paid", "unknown"
 # CalibrationMode values: "auto", "enabled", "disabled"
 ```

@@ -5,6 +5,7 @@
 // This code is licensed under the Apache License, Version 2.0. You may
 // obtain a copy of this license in the LICENSE.txt file in the root directory
 // of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
+// Modified to expose backend status 4 as upgrading.
 
 //! C API for [`TianyanBackend`] and the list returned by `tianyan_platform_list_backends()`.
 //!
@@ -69,6 +70,7 @@ pub extern "C" fn tianyan_backend_display_name(backend: *const TianyanBackendC) 
 /// | 1    | Calibration         |
 /// | 2    | UnderMaintenance    |
 /// | 3    | OffLine             |
+/// | 4    | Upgrading           |
 /// | -1   | Unknown             |
 #[unsafe(no_mangle)]
 pub extern "C" fn tianyan_backend_status(backend: *const TianyanBackendC) -> c_int {
@@ -81,6 +83,7 @@ pub extern "C" fn tianyan_backend_status(backend: *const TianyanBackendC) -> c_i
         DeviceStatus::Calibration => 1,
         DeviceStatus::UnderMaintenance => 2,
         DeviceStatus::OffLine => 3,
+        DeviceStatus::Upgrading => 4,
         DeviceStatus::Unknown(_) => -1,
     }
 }

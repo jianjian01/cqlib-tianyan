@@ -9,6 +9,7 @@
 # Any modifications or derivative works of this code must retain this
 # copyright notice, and modified files need to carry a notice indicating
 # that they have been altered from the originals.
+# Modified to document the upgrading backend status.
 
 """
 Python bindings for the Tianyan quantum cloud platform client.
@@ -66,6 +67,7 @@ class DeviceStatus:
         - "calibration": Device is being calibrated; submissions may queue.
         - "under_maintenance": Temporarily unavailable for maintenance.
         - "offline": Device is offline.
+        - "upgrading": Device is undergoing an upgrade.
         - "unknown": Unrecognized status code from the API.
     """
 

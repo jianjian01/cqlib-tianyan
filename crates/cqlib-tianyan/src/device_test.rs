@@ -9,6 +9,7 @@
 // Any modifications or derivative works of this code must retain this
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
+// Modified to cover the upgrading backend status.
 
 use super::*;
 
@@ -18,6 +19,7 @@ fn device_status_mapping() {
     assert_eq!(DeviceStatus::from_code(1), DeviceStatus::Calibration);
     assert_eq!(DeviceStatus::from_code(2), DeviceStatus::UnderMaintenance);
     assert_eq!(DeviceStatus::from_code(3), DeviceStatus::OffLine);
+    assert_eq!(DeviceStatus::from_code(4), DeviceStatus::Upgrading);
     assert!(matches!(
         DeviceStatus::from_code(99),
         DeviceStatus::Unknown(99)
@@ -47,12 +49,13 @@ fn circuit_input_from_string() {
 
 #[test]
 fn device_status_all_known_codes() {
-    // Exhaustively check that known codes 0-3 map correctly
+    // Exhaustively check that known codes 0-4 map correctly
     let codes_and_expected = [
         (0, DeviceStatus::Running),
         (1, DeviceStatus::Calibration),
         (2, DeviceStatus::UnderMaintenance),
         (3, DeviceStatus::OffLine),
+        (4, DeviceStatus::Upgrading),
     ];
     for (code, expected) in codes_and_expected {
         assert_eq!(DeviceStatus::from_code(code), expected, "code={}", code);

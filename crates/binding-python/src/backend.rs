@@ -9,6 +9,7 @@
 // Any modifications or derivative works of this code must retain this
 // copyright notice, and modified files need to carry a notice indicating
 // that they have been altered from the originals.
+// Modified to expose the upgrading backend status.
 
 //! Python bindings for [`TianyanBackend`], [`DeviceStatus`], [`DeviceToll`],
 //! and [`CalibrationMode`].
@@ -73,6 +74,7 @@ impl<'a, 'py> FromPyObject<'a, 'py> for CalibrationModeInput {
 /// - `"calibration"` — Device is being calibrated; submissions may queue.
 /// - `"under_maintenance"` — Temporarily unavailable for maintenance.
 /// - `"offline"` — Device is offline.
+/// - `"upgrading"` — Device is undergoing an upgrade.
 /// - `"unknown"` — Unrecognised status code from the API.
 #[pyclass(name = "DeviceStatus", module = "cqlib_tianyan", from_py_object)]
 #[derive(Clone, Debug)]
@@ -96,6 +98,7 @@ impl PyDeviceStatus {
             DeviceStatus::Calibration => "calibration",
             DeviceStatus::UnderMaintenance => "under_maintenance",
             DeviceStatus::OffLine => "offline",
+            DeviceStatus::Upgrading => "upgrading",
             DeviceStatus::Unknown(_) => "unknown",
         }
     }
